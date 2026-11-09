@@ -23,7 +23,7 @@ records common orders, payments and leads.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # landing page at http://localhost:3000, app at /app
 ```
 
 No setup needed: without `DATABASE_URL` it uses an embedded Postgres in `.data/`, and without email
@@ -116,7 +116,8 @@ Use those to see real per-message cost. Levers: `CLAUDE_EFFORT_CHAT`, the snapsh
 ## Layout
 
 ```
-public/index.html        the app (mobile-first, no build step)
+public/index.html        the landing page (served at /)
+public/app.html          the app (served at /app; mobile-first, no build step)
 src/server.ts            HTTP server: static files + /api
 src/routes/api.ts        every API route (auth, workspaces, team, messages, import, records, live events)
 src/domain/messages.ts   the message flow above

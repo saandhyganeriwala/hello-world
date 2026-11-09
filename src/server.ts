@@ -19,7 +19,9 @@ app.onError((err, c) => {
   return c.json({ error: "Something went wrong. Please try again." }, 500);
 });
 
-// The app itself: static files, with index.html for any other path.
+// The app lives at /app; the landing page is everything else.
+app.get("/app", serveStatic({ path: "./public/app.html" }));
+app.get("/app/*", serveStatic({ path: "./public/app.html" }));
 app.use("/*", serveStatic({ root: "./public" }));
 app.get("*", serveStatic({ path: "./public/index.html" }));
 
