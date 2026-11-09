@@ -19,7 +19,8 @@ export async function initDb(): Promise<DB> {
     const { drizzle } = await import("drizzle-orm/postgres-js");
     const { migrate } = await import("drizzle-orm/postgres-js/migrator");
     // prepare:false keeps it compatible with connection poolers (Supabase, Neon).
-    const sqlClient = postgres(env.databaseUrl, { max: 10, prepare: false });
+    // onnotice: silence Postgres NOTICEs (e.g. "already exists, skipping" on every boot's migration check).
+    const sqlClient = postgres(env.databaseUrl, { max: 10, prepare: false, onnotice: () => {} });
     const d = drizzle(sqlClient, { schema });
     await migrate(d, { migrationsFolder });
     db = d as unknown as DB;
