@@ -11,8 +11,7 @@
 // names here follow their public template-message API.
 import { env } from "../env.js";
 import type { Phone } from "../lib/phone.js";
-
-export class OtpSendError extends Error {}
+import { OtpSendError } from "./errors.js";
 
 export async function sendOtpViaInterakt(phone: Phone, code: string): Promise<void> {
   if (!env.interaktKey || !env.interaktTemplate) {

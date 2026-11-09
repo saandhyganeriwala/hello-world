@@ -691,7 +691,7 @@ async function api(method, path, body){
       body:body===undefined?undefined:JSON.stringify(body)});
   }catch(e){ throw Object.assign(new Error('You seem to be offline. Check your connection and try again.'),{status:0}); }
   let data={}; try{ data=await res.json(); }catch(e){}
-  if(res.status===401 && path.indexOf('/auth/')!==0) showAuth('phone');
+  if(res.status===401 && path.indexOf('/auth/')!==0) showAuth('start');
   if(!res.ok) throw Object.assign(new Error(data.error||'Something went wrong. Please try again.'),{status:res.status});
   return data;
 }
@@ -1173,12 +1173,14 @@ function teamSheet(){
   const w=ws(), owner=w.role==='owner';
   openSheet('<h3>Team</h3>'+
     w.members.map(m=>'<div class="row-item" style="cursor:default"><span class="ava" style="width:32px;height:32px;background:'+m.color+'">'+esc(initials(m.name))+'</span>'+
-      '<span>'+esc(m.name)+'<span class="sub">'+(m.id===w.me?'You \u00b7 ':'')+(m.pending?'Invited \u00b7 ':'')+esc(m.phone||'')+'</span></span>'+
+      '<span>'+esc(m.name)+'<span class="sub">'+(m.id===w.me?'You \u00b7 ':'')+(m.pending?'Invited \u00b7 ':'')+esc(m.contact||'')+'</span></span>'+
       (owner&&m.id!==w.me?'<button class="iconbtn" data-rmmem="'+esc(m.memberId)+'" aria-label="Remove '+esc(m.name)+'" style="margin-left:auto;width:32px;height:32px">'+svg('close')+'</button>':'')+'</div>').join('')+
     '<div class="sdiv"></div>'+
     '<div class="inline"><input id="newMemName" placeholder="Teammate\u2019s name" autocomplete="off" maxlength="40"></div>'+
-    '<div class="inline"><input id="newMem" type="tel" inputmode="tel" placeholder="Their WhatsApp number" autocomplete="off"><button id="newMemBtn" disabled>Add</button></div>'+
-    '<div class="note">They log in at '+esc(location.host)+' with that number and land straight in this workspace.</div>');
+    (byEmail()
+      ?'<div class="inline"><input id="newMem" type="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="Their email" autocomplete="off"><button id="newMemBtn" disabled>Add</button></div>'
+      :'<div class="inline"><input id="newMem" type="tel" inputmode="tel" placeholder="Their WhatsApp number" autocomplete="off"><button id="newMemBtn" disabled>Add</button></div>')+
+    '<div class="note">They log in at '+esc(location.host)+' with that '+(byEmail()?'email':'number')+' and land straight in this workspace.</div>');
 }
 function menuSheet(){
   const u=state.user||{}, n=ws().members.length;
@@ -1186,7 +1188,7 @@ function menuSheet(){
     '<button class="row-item" id="mTeam"><span>'+svg('people')+'</span><span>Team<span class="sub">'+n+' member'+(n>1?'s':'')+'</span></span></button>'+
     '<button class="row-item" id="mWs"><span>'+svg('swap')+'</span><span>Switch or add workspace</span></button>'+
     '<button class="row-item" id="mSearch"><span>'+svg('search')+'</span><span>Search records</span></button>'+
-    '<button class="row-item" id="mName"><span>'+svg('person')+'</span><span>'+esc(u.name||'Your name')+'<span class="sub">'+esc(u.phone||'')+'</span></span></button>'+
+    '<button class="row-item" id="mName"><span>'+svg('person')+'</span><span>'+esc(u.name||'Your name')+'<span class="sub">'+esc(u.email||u.phone||'')+'</span></span></button>'+
     '<div class="sdiv"></div>'+
     '<button class="row-item danger" id="mLogout"><span>'+svg('logout')+'</span><span>Log out</span></button>');
 }
@@ -1509,7 +1511,7 @@ async function createWorkspace(){ const inp=$('#newWs'); const name=inp.value.tr
   try{ const out=await api('POST','/workspaces',{name}); state.list=out.workspaces; closeSheet(); enterWorkspace(out.current,out.state); toast('Workspace created'); }
   catch(e){ toast(e.message); } }
 async function addMember(){ const n=$('#newMemName'), p=$('#newMem'); if(!n||!p||!n.value.trim()||!p.value.trim()) return;
-  try{ const out=await api('POST','/workspaces/'+ws().id+'/members',{name:n.value.trim(),phone:p.value.trim()}); applyServerState(out.state); teamSheet(); render(); toast('Added \u2014 they can log in now'); }
+  try{ const out=await api('POST','/workspaces/'+ws().id+'/members',{name:n.value.trim(),contact:p.value.trim()}); applyServerState(out.state); teamSheet(); render(); }  // the new "Invited" row is the confirmation
   catch(e){ toast(e.message); } }
 async function removeMember(memberId){
   try{ const out=await api('DELETE','/workspaces/'+ws().id+'/members/'+memberId); applyServerState(out.state); teamSheet(); render(); }
@@ -1532,22 +1534,25 @@ async function clearWorkspace(btn){
 }
 
 /* ---------------- Login (WhatsApp OTP) ---------------- */
-let authPhone='', authPhoneShown='';
+let authId='', authSentTo='';
+const byEmail=()=>(state.config.loginMethod||'email')==='email';
 function showAuth(step){
   const a=$('#auth'); a.hidden=false; a.dataset.step=step;
   let h='<div class="auth-card"><div class="auth-mark">'+svg('layers')+'</div>';
-  if(step==='phone'){
+  if(step==='start'){
     h+='<h1>CRUD.chat</h1><p>Your business, organised by chat.</p>'+
-      '<form class="auth-form" novalidate><label class="auth-lbl" for="authPhone">Mobile number</label>'+
-      '<input id="authPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" value="'+esc(authPhone)+'">'+
-      '<button class="auth-btn" id="authGo" type="submit">Get code on WhatsApp</button></form>';
+      '<form class="auth-form" novalidate><label class="auth-lbl" for="authId">'+(byEmail()?'Email':'Mobile number')+'</label>'+
+      (byEmail()
+        ?'<input id="authId" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@yourbusiness.com" value="'+esc(authId)+'">'
+        :'<input id="authId" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" value="'+esc(authId)+'">')+
+      '<button class="auth-btn" id="authGo" type="submit">'+(byEmail()?'Email me a code':'Get code on WhatsApp')+'</button></form>';
   }else if(step==='code'){
-    h+='<h1>Enter the code</h1><p>Sent on WhatsApp to '+esc(fmtPhone(authPhoneShown))+'</p>'+
+    h+='<h1>Enter the code</h1><p>'+(byEmail()?'Sent to '+esc(authSentTo)+'. Check spam if it\u2019s not there.':'Sent on WhatsApp to '+esc(fmtPhone(authSentTo)))+'</p>'+
       (state.devCode?'<div class="auth-dev">Test mode \u2014 your code is <b>'+esc(state.devCode)+'</b></div>':'')+
       '<form class="auth-form" novalidate><label class="auth-lbl" for="authCode">6-digit code</label>'+
       '<input id="authCode" class="auth-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022">'+
       '<button class="auth-btn" id="authGo" type="submit">Continue</button></form>'+
-      '<div class="auth-links"><button id="authBack" type="button">Change number</button><button id="authResend" type="button">Resend code</button></div>';
+      '<div class="auth-links"><button id="authBack" type="button">'+(byEmail()?'Change email':'Change number')+'</button><button id="authResend" type="button">Resend code</button></div>';
   }else if(step==='name'){
     h+='<h1>What should your team call you?</h1><p>Shown next to everything you record.</p>'+
       '<form class="auth-form" novalidate><label class="auth-lbl" for="authName">Your name</label>'+
@@ -1563,17 +1568,17 @@ function fmtPhone(p){ p=String(p||''); const m=p.match(/^\+91(\d{5})(\d{5})$/); 
 function authError(m){ const el=$('#authErr'); if(el) el.textContent=m||''; }
 function authBusy(on){ const b=$('#authGo'); if(b) b.disabled=on; }
 async function requestCode(){
-  const el=$('#authPhone'); const raw=(el?el.value.trim():authPhone);
-  if(!raw){ authError('Enter your mobile number.'); return; }
-  authPhone=raw; authBusy(true); authError('');
-  try{ const out=await api('POST','/auth/request-otp',{phone:raw}); authPhoneShown=out.phone; state.devCode=out.devCode||''; showAuth('code'); }
+  const el=$('#authId'); const raw=(el?el.value.trim():authId);
+  if(!raw){ authError(byEmail()?'Enter your email.':'Enter your mobile number.'); return; }
+  authId=raw; authBusy(true); authError('');
+  try{ const out=await api('POST','/auth/request-otp',{identifier:raw}); authSentTo=out.sentTo; state.devCode=out.devCode||''; showAuth('code'); }
   catch(e){ authBusy(false); authError(e.message); }
 }
 async function verifyCode(){
   const el=$('#authCode'); const code=(el?el.value:'').replace(/\D/g,'');
   if(code.length!==6){ authError('Enter the 6-digit code.'); return; }
   authBusy(true); authError('');
-  try{ await api('POST','/auth/verify-otp',{phone:authPhone,code}); state.devCode=''; await loadApp(); }
+  try{ await api('POST','/auth/verify-otp',{identifier:authId,code}); state.devCode=''; await loadApp(); }
   catch(e){ authBusy(false); authError(e.message); if(el){ el.value=''; el.focus(); } }
 }
 async function saveName(){
@@ -1584,8 +1589,8 @@ async function saveName(){
 }
 function bindAuth(){
   const a=$('#auth');
-  a.addEventListener('submit',e=>{ e.preventDefault(); const st=a.dataset.step; if(st==='phone') requestCode(); else if(st==='code') verifyCode(); else if(st==='name') saveName(); });
-  a.addEventListener('click',e=>{ if(e.target.closest('#authBack')) showAuth('phone'); if(e.target.closest('#authResend')) requestCode(); });
+  a.addEventListener('submit',e=>{ e.preventDefault(); const st=a.dataset.step; if(st==='start') requestCode(); else if(st==='code') verifyCode(); else if(st==='name') saveName(); });
+  a.addEventListener('click',e=>{ if(e.target.closest('#authBack')) showAuth('start'); if(e.target.closest('#authResend')) requestCode(); });
   a.addEventListener('input',e=>{ if(e.target.id==='authCode'){ const v=e.target.value.replace(/\D/g,'').slice(0,6); e.target.value=v; if(v.length===6) verifyCode(); } });
 }
 
@@ -1626,13 +1631,13 @@ async function loadApp(){
     state.user=b.user; state.list=b.workspaces;
     if(!b.user.name) showAuth('name'); else hideAuth();
     enterWorkspace(b.current,b.state);
-  }catch(e){ if(e.status!==401){ showAuth('phone'); authError(e.message); } }
+  }catch(e){ if(e.status!==401){ showAuth('start'); authError(e.message); } }
 }
 async function logout(){
   try{ await api('POST','/auth/logout'); }catch(e){}
   if(events){ events.close(); events=null; }
   state.user=null; state.workspaces={}; state.current=null; state.list=[];
-  closeSheet(); view={mode:'home',section:null,recordId:null}; render(); showAuth('phone');
+  closeSheet(); view={mode:'home',section:null,recordId:null}; render(); showAuth('start');
 }
 
 /* ---------------- Boot ---------------- */
@@ -1641,8 +1646,8 @@ function boot(){
   showAuth('loading');
   view={mode:'home',section:null,recordId:null};
   render();
-  fetch('/api/config').then(r=>r.json()).then(c=>{ state.config=c||{}; }).catch(()=>{});
-  loadApp();
+  // Learn the login method (email or WhatsApp) before showing the login screen.
+  fetch('/api/config').then(r=>r.json()).then(c=>{ state.config=c||{}; }).catch(()=>{}).finally(loadApp);
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') scheduleRefresh(); });
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();

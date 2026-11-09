@@ -5,9 +5,9 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { members, messages, records, sections, users, workspaces, type Fields } from "../db/schema.js";
 import { env } from "../env.js";
-import { normalizePhone } from "../lib/phone.js";
+import { invalidIdentityMessage, normalizeIdentity } from "../lib/identity.js";
 import { OtpError, requestOtp, verifyOtp } from "../auth/otp.js";
-import { OtpSendError } from "../auth/interakt.js";
+import { OtpSendError } from "../auth/errors.js";
 import { createSession, destroySession, requireUser, type AppEnv } from "../auth/session.js";
 import { aiEnabled, planImport } from "../ai/claude.js";
 import { createWorkspace, getMembership, listWorkspaces, loadState, nextColor } from "../domain/state.js";
@@ -25,14 +25,17 @@ const bigBody = bodyLimit({ maxSize: 25 * 1024 * 1024, onError: (c) => c.json({ 
 // ---------- public ----------
 
 api.get("/health", (c) => c.json({ ok: true }));
-api.get("/config", (c) => c.json({ otpDevMode: env.otpDevMode, aiEnabled: aiEnabled() }));
+api.get("/config", (c) => c.json({ otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod }));
+
+// The login box sends { identifier } — an email or a phone number, per LOGIN_METHOD.
+const identifierOf = (b: Record<string, any>) => b.identifier ?? b.email ?? b.phone;
 
 api.post("/auth/request-otp", async (c) => {
-  const phone = normalizePhone((await body(c)).phone);
-  if (!phone) return c.json({ error: "Enter a valid mobile number." }, 400);
+  const id = normalizeIdentity(identifierOf(await body(c)));
+  if (!id) return c.json({ error: invalidIdentityMessage() }, 400);
   try {
-    const { devCode } = await requestOtp(phone);
-    return c.json({ ok: true, phone: phone.e164, ...(devCode ? { devCode } : {}) });
+    const { devCode } = await requestOtp(id);
+    return c.json({ ok: true, sentTo: id.value, via: id.kind, ...(devCode ? { devCode } : {}) });
   } catch (e) {
     if (e instanceof OtpError) return c.json({ error: e.message }, e.status);
     if (e instanceof OtpSendError) return c.json({ error: e.message }, 502);
@@ -42,12 +45,12 @@ api.post("/auth/request-otp", async (c) => {
 
 api.post("/auth/verify-otp", async (c) => {
   const b = await body(c);
-  const phone = normalizePhone(b.phone);
-  if (!phone) return c.json({ error: "Enter a valid mobile number." }, 400);
+  const id = normalizeIdentity(identifierOf(b));
+  if (!id) return c.json({ error: invalidIdentityMessage() }, 400);
   try {
-    const user = await verifyOtp(phone, str(b.code, 10));
+    const user = await verifyOtp(id, str(b.code, 10));
     await createSession(c, user.id);
-    return c.json({ ok: true, user: { id: user.id, phone: user.phone, name: user.name } });
+    return c.json({ ok: true, user: { id: user.id, email: user.email, phone: user.phone, name: user.name } });
   } catch (e) {
     if (e instanceof OtpError) return c.json({ error: e.message }, e.status);
     throw e;
@@ -141,15 +144,20 @@ api.post("/workspaces/:id/clear", async (c) => {
 api.post("/workspaces/:id/members", async (c) => {
   if (!(await access(c))) return notFound(c);
   const b = await body(c), id = c.req.param("id"), db = getDb();
-  const phone = normalizePhone(b.phone);
+  const who = normalizeIdentity(b.contact ?? b.email ?? b.phone);
   const name = str(b.name, 40);
-  if (!phone) return c.json({ error: "Enter a valid mobile number." }, 400);
   if (!name) return c.json({ error: "Enter their name." }, 400);
+  if (!who) return c.json({ error: invalidIdentityMessage() }, 400);
+  const memberCol = who.kind === "email" ? members.email : members.phone;
+  const userCol = who.kind === "email" ? users.email : users.phone;
   const [exists] = await db.select({ id: members.id }).from(members)
-    .where(and(eq(members.workspaceId, id), eq(members.phone, phone.e164))).limit(1);
-  if (exists) return c.json({ error: "That number is already in this workspace." }, 409);
-  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone.e164)).limit(1);
-  await db.insert(members).values({ workspaceId: id, userId: u?.id ?? null, phone: phone.e164, name, color: await nextColor(db, id) });
+    .where(and(eq(members.workspaceId, id), eq(memberCol, who.value))).limit(1);
+  if (exists) return c.json({ error: `That ${who.kind === "email" ? "email" : "number"} is already in this workspace.` }, 409);
+  const [u] = await db.select({ id: users.id }).from(users).where(eq(userCol, who.value)).limit(1);
+  await db.insert(members).values({
+    workspaceId: id, userId: u?.id ?? null, name, color: await nextColor(db, id),
+    ...(who.kind === "email" ? { email: who.value } : { phone: who.value }),
+  });
   changed(c, id);
   return c.json({ state: await stateOf(c, id) });
 });

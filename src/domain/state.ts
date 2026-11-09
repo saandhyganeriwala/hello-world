@@ -3,7 +3,7 @@ import type { DB, Tx } from "../db/client.js";
 import { getDb } from "../db/client.js";
 import { members, messages, records, sections, workspaces } from "../db/schema.js";
 import type { AuthUser } from "../auth/session.js";
-import { maskPhone } from "../lib/phone.js";
+import { maskContact } from "../lib/identity.js";
 import { MEMBER_COLORS } from "./helpers.js";
 
 const MESSAGE_WINDOW = 300;
@@ -29,7 +29,7 @@ export async function createWorkspace(user: AuthUser, name: string) {
   return getDb().transaction(async (tx) => {
     const [w] = await tx.insert(workspaces).values({ name: name.trim() || "My workspace", createdBy: user.id }).returning();
     await tx.insert(members).values({
-      workspaceId: w.id, userId: user.id, phone: user.phone, name: user.name, role: "owner", color: MEMBER_COLORS[0],
+      workspaceId: w.id, userId: user.id, email: user.email, phone: user.phone, name: user.name, role: "owner", color: MEMBER_COLORS[0],
     });
     return w.id;
   });
@@ -62,7 +62,7 @@ export async function loadState(workspaceId: string, userId: string) {
       color: m.color,
       role: m.role,
       pending: !m.userId,
-      phone: m.userId === userId ? m.phone : maskPhone(m.phone),
+      contact: m.userId === userId ? (m.email || m.phone || "") : maskContact(m.email || m.phone),
     })),
     sections: Object.fromEntries(secs.map((s) => [s.name, { name: s.name, icon: s.icon, kind: s.kind, sort: s.sort }])),
     order: secs.map((s) => s.name),

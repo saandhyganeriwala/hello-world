@@ -15,7 +15,7 @@ const { Understanding } = await import("../src/ai/schemas.js");
 await initDb();
 const db = getDb();
 const [u] = await db.insert(users).values({ phone: "+919999999999", name: "Tester" }).returning();
-const wsId = await createWorkspace({ id: u.id, phone: u.phone, name: u.name }, "Smoke");
+const wsId = await createWorkspace({ id: u.id, email: u.email, phone: u.phone, name: u.name }, "Smoke");
 const ctx = { workspaceId: wsId, userId: u.id, authorName: "Tester" };
 
 let failures = 0;

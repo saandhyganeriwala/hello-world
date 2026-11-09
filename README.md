@@ -26,8 +26,8 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-No setup needed: without `DATABASE_URL` it uses an embedded Postgres in `.data/`, and without Interakt
-credentials the login code is shown on screen. Add `ANTHROPIC_API_KEY` to a `.env` file (see
+No setup needed: without `DATABASE_URL` it uses an embedded Postgres in `.data/`, and without email
+(Resend) credentials the login code is shown on screen. Add `ANTHROPIC_API_KEY` to a `.env` file (see
 `.env.example`) to turn on Claude.
 
 | Script | What it does |
@@ -39,36 +39,72 @@ credentials the login code is shown on screen. Add `ANTHROPIC_API_KEY` to a `.en
 | `npx tsx scripts/check-schemas.ts` | Validate the JSON schemas sent to Claude |
 | `npm run db:generate` | Create a migration after changing `src/db/schema.ts` (applied on boot) |
 
-## Deploy (Railway — app + Postgres in one place)
+## Deploy on Railway (app + Postgres in one place)
 
-1. Push this repository to GitHub.
-2. In [Railway](https://railway.com): **New Project → Deploy from GitHub repo** → pick this repo.
-   It builds with the included `Dockerfile`.
-3. In the project: **+ New → Database → PostgreSQL**.
-4. On the app service → **Variables**, add:
-   - `DATABASE_URL` → reference the Postgres service's `DATABASE_URL`
-   - `SESSION_SECRET` → a long random string
-   - `ANTHROPIC_API_KEY` → from console.anthropic.com
-   - `NODE_ENV` = `production`
-   - Interakt variables (below), **or** `OTP_DEV_MODE=true` to test before Interakt is ready
-5. **Settings → Networking → Generate Domain** (or add `crud.chat` as a custom domain and point its DNS
-   at Railway). Set the health check path to `/api/health`.
+1. **Account** — sign up at [railway.com](https://railway.com) with GitHub and choose the Hobby plan
+   ($5/month, includes $5 of usage).
+2. **App** — *New Project → Deploy from GitHub repo* → allow Railway access to this repository → pick it.
+   Railway builds from the `Dockerfile`. If the code isn't on the default branch yet, open the service →
+   *Settings → Source* and pick the branch. The first deploy will crash: it has no settings yet.
+3. **Database** — on the project canvas: *Create → Database → Add PostgreSQL*.
+4. **Settings** — open the app service → *Variables → Raw Editor*, paste and fill in:
+   ```
+   NODE_ENV=production
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   SESSION_SECRET=<a long random string>
+   ANTHROPIC_API_KEY=<from console.anthropic.com>
+   LOGIN_METHOD=email
+   RESEND_API_KEY=<from resend.com>
+   EMAIL_FROM=CRUD.chat <login@crud.chat>
+   OTP_DEV_MODE=false
+   ```
+   (`${{Postgres.DATABASE_URL}}` links the database; use the database service's name if you renamed it.
+   Make a secret with `openssl rand -hex 32`, or a password manager's 40+ character password.)
+   Click **Deploy** to apply the changes.
+5. **Health check** — *Settings → Deploy → Healthcheck Path* = `/api/health`. Optionally pick a region near
+   your users (e.g. Singapore for India) under the same section.
+6. **Address** — *Settings → Networking → Generate Domain* gives you `something.up.railway.app`. If it asks
+   for a port, use the one in the deploy log line `CRUD.chat listening on http://localhost:<port>`.
+7. **Your domain** — *Settings → Networking → Custom Domain* → `crud.chat` → add the DNS record Railway shows
+   at your domain registrar. A bare domain (`crud.chat`, not `app.crud.chat`) needs a DNS host that
+   supports CNAME flattening/ALIAS records, such as Cloudflare.
+8. **Check** — open the address, log in, record something. *Deployments → View logs* shows
+   `[config] login by email` at start and one line per Claude call.
 
 Migrations run automatically on start. The app is one process; it can run on Render or Fly.io from the
 same Dockerfile. Live updates use an in-process event bus, so run a **single instance** until that is
 moved to Postgres LISTEN/NOTIFY or Redis.
 
-## WhatsApp login (Interakt)
+## Login
+
+`LOGIN_METHOD` picks how people log in: `email` (default) or `whatsapp`. Either way codes are 6 digits,
+expire after 10 minutes, are stored hashed, allow 5 tries, and are rate-limited (30 s between sends,
+5 per hour per address). Teammates are invited by the same kind of address. Pick one method before real
+users sign up — an email account and a phone account are separate people.
+
+To test before either is set up, set `OTP_DEV_MODE=true`: the code is shown on screen. Turn it off for
+real users.
+
+### Email (Resend)
+
+1. Sign up at [resend.com](https://resend.com) (free tier: 3,000 emails/month).
+2. *Domains → Add Domain* → `crud.chat` → add the DNS records it shows at your registrar → *Verify*.
+   Until the domain is verified, Resend only delivers to your own sign-up address.
+3. *API Keys → Create API Key* (sending access) → set `RESEND_API_KEY`.
+4. Set `EMAIL_FROM` to an address on that domain, e.g. `CRUD.chat <login@crud.chat>`.
+
+The email is built in `src/auth/email.ts`.
+
+### WhatsApp (Interakt)
 
 1. Connect your WhatsApp Business number in Interakt.
 2. Create a template, category **Authentication**, with the code as its one variable
    (e.g. `{{1}} is your CRUD.chat code.`) and, ideally, a **Copy code** button. Wait for Meta's approval.
 3. Copy the API key from **Interakt → Settings → Developer Setting**.
-4. Set `INTERAKT_API_KEY`, `INTERAKT_OTP_TEMPLATE` (the template's exact name), `INTERAKT_TEMPLATE_LANG`
-   (usually `en`), and `INTERAKT_OTP_BUTTON` (`true` if the template has the button). Set `OTP_DEV_MODE=false`.
+4. Set `LOGIN_METHOD=whatsapp`, `INTERAKT_API_KEY`, `INTERAKT_OTP_TEMPLATE` (the template's exact name),
+   `INTERAKT_TEMPLATE_LANG` (usually `en`), and `INTERAKT_OTP_BUTTON` (`true` if the template has the button).
 
-The request is built in `src/auth/interakt.ts`. Codes are 6 digits, expire after 10 minutes, are stored
-hashed, allow 5 tries, and are rate-limited (30 s between sends, 5 per hour per number).
+The request is built in `src/auth/interakt.ts`.
 
 ## Costs
 
@@ -87,7 +123,7 @@ src/domain/messages.ts   the message flow above
 src/domain/apply.ts      record operations + interface commands (transactional)
 src/domain/import.ts     spreadsheet import
 src/ai/                  Claude client, prompts, structured-output schemas
-src/auth/                OTP, Interakt, sessions
+src/auth/                OTP, email (Resend), WhatsApp (Interakt), sessions
 src/db/                  schema + connection (Postgres or embedded PGlite)
 drizzle/                 SQL migrations
 ```

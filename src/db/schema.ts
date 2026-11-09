@@ -9,22 +9,25 @@ export type Fields = Record<string, string>;
 export type HistoryEntry = { ts: number; author: string; type: "create" | "update" | "edit"; html: string };
 export type SectionSort = { by: string; dir: "asc" | "desc" } | null;
 
+// A person logs in with an email or a phone number (LOGIN_METHOD decides which).
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  phone: text("phone").notNull().unique(),
+  email: text("email").unique(),
+  phone: text("phone").unique(),
   name: text("name"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+// `target` is the email address or phone number the code was sent to.
 export const otpCodes = pgTable("otp_codes", {
   id: uuid("id").primaryKey().defaultRandom(),
-  phone: text("phone").notNull(),
+  target: text("target").notNull(),
   codeHash: text("code_hash").notNull(),
   attempts: integer("attempts").notNull().default(0),
   expiresAt: ts("expires_at").notNull(),
   consumedAt: ts("consumed_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
-}, (t) => [index("otp_phone_created_idx").on(t.phone, t.createdAt)]);
+}, (t) => [index("otp_target_created_idx").on(t.target, t.createdAt)]);
 
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -42,20 +45,23 @@ export const workspaces = pgTable("workspaces", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
-// A member is a phone number in a workspace. user_id is null until that
-// person logs in for the first time (that's how invites work).
+// A member is an email (or phone number) in a workspace. user_id is null
+// until that person logs in for the first time — that's how invites work.
 export const members = pgTable("members", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-  phone: text("phone").notNull(),
+  email: text("email"),
+  phone: text("phone"),
   name: text("name"),
   role: text("role").notNull().default("member"), // owner | member
   color: text("color").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [
+  uniqueIndex("members_ws_email_uq").on(t.workspaceId, t.email),
   uniqueIndex("members_ws_phone_uq").on(t.workspaceId, t.phone),
   index("members_user_idx").on(t.userId),
+  index("members_email_idx").on(t.email),
   index("members_phone_idx").on(t.phone),
 ]);
 

@@ -9,7 +9,7 @@ import { randomToken, sha256 } from "../lib/crypto.js";
 const COOKIE = "crud_session";
 const MAX_AGE_DAYS = 30;
 
-export type AuthUser = { id: string; phone: string; name: string | null };
+export type AuthUser = { id: string; email: string | null; phone: string | null; name: string | null };
 export type AppEnv = { Variables: { user: AuthUser; clientId: string } };
 
 export async function createSession(c: Context, userId: string) {
@@ -31,7 +31,7 @@ async function userFromCookie(c: Context): Promise<AuthUser | null> {
   const token = getCookie(c, COOKIE);
   if (!token) return null;
   const rows = await getDb()
-    .select({ id: users.id, phone: users.phone, name: users.name })
+    .select({ id: users.id, email: users.email, phone: users.phone, name: users.name })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.tokenHash, sha256(token)), gt(sessions.expiresAt, new Date())))
