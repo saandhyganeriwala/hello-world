@@ -41,6 +41,8 @@ export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   accent: text("accent"),
+  // Shareable code for invite links (/app/join/<code>). Anyone logged in with it can join.
+  inviteCode: text("invite_code").unique(),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: ts("created_at").notNull().defaultNow(),
 });

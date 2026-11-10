@@ -5,6 +5,25 @@ import { members, messages, records, sections, workspaces } from "../db/schema.j
 import type { AuthUser } from "../auth/session.js";
 import { maskContact } from "../lib/identity.js";
 import { MEMBER_COLORS } from "./helpers.js";
+import crypto from "node:crypto";
+
+// No 0/o/1/l/i, so a code read aloud or typed from a screenshot comes out right.
+const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+export function newInviteCode(len = 8) {
+  const bytes = crypto.randomBytes(len);
+  return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+}
+
+/** Returns the workspace's invite code, creating one for workspaces made before invite links existed. */
+export async function ensureInviteCode(workspaceId: string, current: string | null) {
+  if (current) return current;
+  const code = newInviteCode();
+  const [w] = await getDb().update(workspaces).set({ inviteCode: code })
+    .where(and(eq(workspaces.id, workspaceId), sql`${workspaces.inviteCode} is null`)).returning({ code: workspaces.inviteCode });
+  if (w?.code) return w.code;
+  const [again] = await getDb().select({ code: workspaces.inviteCode }).from(workspaces).where(eq(workspaces.id, workspaceId));
+  return again?.code ?? code;
+}
 
 const MESSAGE_WINDOW = 300;
 
@@ -27,7 +46,7 @@ export async function nextColor(db: DB | Tx, workspaceId: string) {
 
 export async function createWorkspace(user: AuthUser, name: string) {
   return getDb().transaction(async (tx) => {
-    const [w] = await tx.insert(workspaces).values({ name: name.trim() || "My workspace", createdBy: user.id }).returning();
+    const [w] = await tx.insert(workspaces).values({ name: name.trim() || "My workspace", createdBy: user.id, inviteCode: newInviteCode() }).returning();
     await tx.insert(members).values({
       workspaceId: w.id, userId: user.id, email: user.email, phone: user.phone, name: user.name, role: "owner", color: MEMBER_COLORS[0],
     });
@@ -47,11 +66,13 @@ export async function loadState(workspaceId: string, userId: string) {
     db.select().from(messages).where(eq(messages.workspaceId, workspaceId)).orderBy(desc(messages.createdAt)).limit(MESSAGE_WINDOW),
   ]);
   const secName = new Map(secs.map((s) => [s.id, s.name]));
+  const inviteCode = await ensureInviteCode(w.id, w.inviteCode);
   const me = mem.find((m) => m.userId === userId);
   return {
     id: w.id,
     name: w.name,
     accent: w.accent,
+    inviteCode,
     me: userId,
     active: userId,
     role: me?.role ?? "member",

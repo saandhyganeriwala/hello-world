@@ -100,12 +100,12 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
         result.kind = "error";
         await botReply(ws, aiEnabled()
           ? "I couldn't read that screenshot just now. Try again in a moment."
-          : "Reading screenshots needs Claude to be connected (ANTHROPIC_API_KEY).");
+          : "I can't read screenshots yet — my AI isn't switched on for this workspace. Type it out and I'll still save it.");
       } else if (addressed(input.text) || looksLikeQuestion(input.text)) {
         result.kind = "error";
         await botReply(ws, aiEnabled()
           ? "I couldn't reach my brain just now — try again in a moment."
-          : "Answering questions and changing the interface needs Claude to be connected (ANTHROPIC_API_KEY).");
+          : "I can't answer questions yet — my AI isn't switched on for this workspace. Everything you record is still saved.");
       } else {
         result.kind = "fallback";
         const recs = (await buildSnapshot(ws)).records;

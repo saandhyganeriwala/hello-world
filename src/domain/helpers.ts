@@ -6,7 +6,7 @@ export type Kind = (typeof KINDS)[number];
 
 export const ICONS = ["package", "box", "rupee", "chat", "phone", "person", "people", "task", "truck", "calendar", "note", "clock", "star", "tag"] as const;
 
-export const MEMBER_COLORS = ["#2F54EB", "#1C8A57", "#B4781A", "#9333EA", "#C53B3B", "#0891B2", "#DB2777", "#65759A"];
+export const MEMBER_COLORS = ['#0B8C8C','#9A47C6','#E8870B','#12845A','#D23A2E','#97672B','#3A57D6','#C2417A'];
 
 const KIND_MAP: Record<string, Kind> = {
   order: "orders", sale: "orders", sales: "orders", payment: "payments", invoice: "payments", ledger: "payments",

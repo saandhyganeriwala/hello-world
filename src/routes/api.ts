@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { streamSSE } from "hono/streaming";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { members, messages, records, sections, users, workspaces, type Fields } from "../db/schema.js";
 import { env } from "../env.js";
@@ -10,7 +10,7 @@ import { OtpError, requestOtp, verifyOtp } from "../auth/otp.js";
 import { OtpSendError } from "../auth/errors.js";
 import { createSession, destroySession, requireUser, type AppEnv } from "../auth/session.js";
 import { aiEnabled, planImport } from "../ai/claude.js";
-import { createWorkspace, getMembership, listWorkspaces, loadState, nextColor } from "../domain/state.js";
+import { createWorkspace, getMembership, listWorkspaces, loadState, newInviteCode, nextColor } from "../domain/state.js";
 import { processMessage, type ImageInput } from "../domain/messages.js";
 import { applyImport, fallbackPlan, type Sheet } from "../domain/import.js";
 import { cleanKey, esc } from "../domain/helpers.js";
@@ -69,6 +69,7 @@ api.use("/bootstrap", requireUser);
 api.use("/workspaces", requireUser);
 api.use("/workspaces/*", requireUser);
 api.use("/records/*", requireUser);
+api.use("/invites/*", requireUser);
 
 api.get("/me", (c) => c.json({ user: c.get("user") }));
 
@@ -83,14 +84,11 @@ api.patch("/me", async (c) => {
   return c.json({ user: { ...user, name } });
 });
 
-/** Everything the app needs on open. A first-time user gets a workspace automatically. */
+/** Everything the app needs on open. Someone with no workspace yet chooses: start one, or join their team. */
 api.get("/bootstrap", async (c) => {
   const user = c.get("user");
-  let list = await listWorkspaces(user.id);
-  if (!list.length) {
-    await createWorkspace(user, "My workspace");
-    list = await listWorkspaces(user.id);
-  }
+  const list = await listWorkspaces(user.id);
+  if (!list.length) return c.json({ user, workspaces: [], current: null, state: null });
   const wanted = c.req.query("workspace");
   const current = list.find((w) => w.id === wanted)?.id ?? list[0].id;
   return c.json({ user, workspaces: list, current, state: await loadState(current, user.id) });
@@ -100,6 +98,46 @@ api.post("/workspaces", async (c) => {
   const user = c.get("user");
   const id = await createWorkspace(user, str((await body(c)).name, 60) || "New workspace");
   return c.json({ workspaces: await listWorkspaces(user.id), current: id, state: await loadState(id, user.id) });
+});
+
+// ----- invite links: /app/join/<code> -----
+
+const normCode = (v: string | undefined) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 32);
+async function workspaceByCode(code: string) {
+  if (code.length < 6) return null;
+  const [w] = await getDb().select().from(workspaces).where(eq(workspaces.inviteCode, code)).limit(1);
+  return w ?? null;
+}
+
+/** What the invite is for, so the person can confirm before joining. */
+api.get("/invites/:code", async (c) => {
+  const w = await workspaceByCode(normCode(c.req.param("code")));
+  if (!w) return c.json({ error: "That invite link isn't valid any more. Ask your teammate for a new one." }, 404);
+  const db = getDb();
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(members).where(eq(members.workspaceId, w.id));
+  const [owner] = await db.select({ name: members.name }).from(members).where(and(eq(members.workspaceId, w.id), eq(members.role, "owner"))).limit(1);
+  const already = !!(await getMembership(c.get("user").id, w.id));
+  return c.json({ workspace: { id: w.id, name: w.name }, members: n, owner: owner?.name ?? null, already });
+});
+
+api.post("/invites/:code/join", async (c) => {
+  const user = c.get("user");
+  const w = await workspaceByCode(normCode(c.req.param("code")));
+  if (!w) return c.json({ error: "That invite link isn't valid any more. Ask your teammate for a new one." }, 404);
+  const db = getDb();
+  if (!(await getMembership(user.id, w.id))) {
+    // If they were already invited by email/number, claim that row instead of adding a second one.
+    const mine = [user.email ? eq(members.email, user.email) : undefined, user.phone ? eq(members.phone, user.phone) : undefined].filter(Boolean) as any[];
+    const [invited] = mine.length
+      ? await db.select({ id: members.id }).from(members).where(and(eq(members.workspaceId, w.id), isNull(members.userId), or(...mine))).limit(1)
+      : [];
+    if (invited) await db.update(members).set({ userId: user.id, name: user.name }).where(eq(members.id, invited.id));
+    else await db.insert(members).values({
+      workspaceId: w.id, userId: user.id, email: user.email, phone: user.phone, name: user.name, role: "member", color: await nextColor(db, w.id),
+    }).onConflictDoNothing();
+    publish(w.id, { type: "change", by: c.get("clientId") });
+  }
+  return c.json({ workspaces: await listWorkspaces(user.id), current: w.id, state: await loadState(w.id, user.id) });
 });
 
 /** Loads the membership for :id or returns null after sending a 404. */
@@ -160,6 +198,14 @@ api.post("/workspaces/:id/members", async (c) => {
   });
   changed(c, id);
   return c.json({ state: await stateOf(c, id) });
+});
+
+api.post("/workspaces/:id/invite/reset", async (c) => {
+  const m = await access(c);
+  if (!m) return notFound(c);
+  if (m.role !== "owner") return c.json({ error: "Only the owner can reset the invite link." }, 403);
+  await getDb().update(workspaces).set({ inviteCode: newInviteCode() }).where(eq(workspaces.id, c.req.param("id")));
+  return c.json({ state: await stateOf(c, c.req.param("id")) });
 });
 
 api.delete("/workspaces/:id/members/:memberId", async (c) => {
