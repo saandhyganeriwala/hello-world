@@ -1,9 +1,11 @@
 // Structured-output schemas. Claude's reply is constrained to these shapes,
 // so we never parse free text.
 //
-// The API caps strict schemas at 16 union-typed parameters and 24 optional ones
-// across the whole request. So nothing here is nullable or optional: "not set" is
-// an empty string, an empty list, or 0, and "maybe one" is a list of zero or one.
+// Limits on strict schemas: at most 16 union-typed and 24 optional parameters per request,
+// and the compiled grammar must stay small. So nothing here is nullable or optional ("not
+// set" is "", [] or 0), and a view (a big nested object) travels as a JSON *string* that
+// the server parses and sanitises (src/domain/views.ts). The View schema below documents
+// that shape; it is not part of the grammar.
 // Record fields are a list of {key, value} pairs because objects need fixed keys.
 import { z } from "zod/v4"; // the SDK's structured-output helper is built on zod v4
 import { ICONS, KINDS } from "../domain/helpers.js";
@@ -62,7 +64,7 @@ export const Operation = z.object({
   sectionKind: Kind,
   recordId: z.string(),                // "" for a create
   fields: z.array(Field),
-  sectionView: z.array(View),          // only when this creates a new section that deserves a custom screen
+  sectionView: z.string(),             // "" — or one view as JSON, when this creates a section that deserves its own screen
 });
 
 export const COMMAND_TYPES = [
@@ -87,7 +89,7 @@ export const Command = z.object({
   mode: z.enum(["light", "dark", "system", ""]),
   accent: z.string(),
   order: z.array(z.string()),
-  view: z.array(View),                 // addView: exactly one
+  view: z.string(),                    // addView: one view as JSON
 });
 
 export const Understanding = z.object({

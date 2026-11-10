@@ -30,9 +30,9 @@ const F = (o: Record<string, string>) => Object.entries(o).map(([key, value]) =>
 const reply = Understanding.parse({
   kind: "record", answer: "", focus: "", commands: [],
   operations: [
-    { op: "create", section: "Orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: [],
+    { op: "create", section: "Orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: "",
       fields: F({ Title: "A", Customer: "A", Product: "Pooja thalis", Quantity: "5", Rate: "₹400 each", Amount: "₹2,000", Payment: "Paid", Status: "New" }) },
-    { op: "create", section: "orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: [],
+    { op: "create", section: "orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: "",
       fields: F({ Title: "Kashish", Customer: "Kashish", Amount: "₹22,500", Status: "New" }) },
   ],
 });
@@ -52,7 +52,7 @@ check("snapshot lists sections with field names", snap.sections[0].fields.includ
 
 // Commands exactly as Claude returns them: every property present, unused ones empty.
 const C = (c: Record<string, unknown>) => Command.parse({ section: "", from: "", to: "", into: "", name: "", kind: "", icon: "",
-  field: "", value: "", by: "", dir: "", mode: "", accent: "", order: [], view: [], ...c });
+  field: "", value: "", by: "", dir: "", mode: "", accent: "", order: [], view: "", ...c });
 const V = (v: Record<string, unknown>) => ({ name: "", type: "list", groupBy: "", groups: [], dateField: "", measure: "", agg: "count",
   chart: "", bucket: "", fields: [], filters: [], sortBy: "", sortDir: "", goal: 0, unit: "", period: "", metrics: [], highlight: [], limit: 0, ...v });
 const out = await db.transaction((tx) => applyCommands(tx, ctx, [
@@ -92,9 +92,9 @@ check("deleteSection", !s.order.includes("Sales"), s.order);
 
 // Views: add a board, replace it with a filtered one, add a chart, remove it.
 await db.transaction((tx) => applyCommands(tx, ctx, [
-  C({ type: "addView", section: "Leads", view: [V({ name: "Pipeline", type: "board", groupBy: "Status", groups: ["New", "Won"], measure: "Amount", agg: "sum" })] }),
-  C({ type: "addView", section: "Leads", view: [V({ name: "pipeline", type: "board", groupBy: "Status", filters: [{ field: "Status", op: "neq", value: "Lost" }] })] }),
-  C({ type: "addView", section: "Leads", view: [V({ name: "By source", type: "chart", chart: "pie", groupBy: "Source" })] }),
+  C({ type: "addView", section: "Leads", view: JSON.stringify(V({ name: "Pipeline", type: "board", groupBy: "Status", groups: ["New", "Won"], measure: "Amount", agg: "sum" })) }),
+  C({ type: "addView", section: "Leads", view: JSON.stringify(V({ name: "pipeline", type: "board", groupBy: "Status", filters: [{ field: "Status", op: "neq", value: "Lost" }] })) }),
+  C({ type: "addView", section: "Leads", view: JSON.stringify(V({ name: "By source", type: "chart", chart: "pie", groupBy: "Source" })) }),
 ]));
 s = await state();
 let lv = s.sections.Leads.views as any[];
@@ -104,11 +104,35 @@ s = await state();
 check("removeView", (s.sections.Leads.views as any[]).length === 1);
 // A new section can arrive with its own screen (a water tracker).
 await db.transaction((tx) => applyOps(tx, ctx, [{ op: "create", section: "Water Intake", sectionIcon: "drop", sectionKind: "tracker", recordId: "",
-  fields: F({ Title: "Water", Amount: "500", Unit: "ml" }), sectionView: [V({ name: "Today", type: "tracker", measure: "Amount", unit: "ml", goal: 3000, period: "day", agg: "sum" })] }]));
+  fields: F({ Title: "Water", Amount: "500", Unit: "ml" }), sectionView: JSON.stringify({ name: "Today", type: "tracker", measure: "Amount", unit: "ml", goal: 3000, period: "day", agg: "sum" }) }]));
 s = await state();
 lv = s.sections["Water Intake"].views as any[];
 check("new tracker section gets its view", s.sections["Water Intake"].kind === "tracker" && s.sections["Water Intake"].icon === "drop" && lv[0]?.goal === 3000, s.sections["Water Intake"]);
 check("snapshot lists saved views", (await buildSnapshot(wsId)).sections.some((x) => x.views.some((v) => v.name === "Today")));
+
+// Billing: price a call, run out of free credit, member limits, pay (twice) → Pro.
+const { priceUsd, recordUsage, billingStatus, activatePayment, assertCanAddMember, LimitError } = await import("../src/domain/billing.js");
+const { payments, members } = await import("../src/db/schema.js");
+const call = { label: "understand", model: "claude-sonnet-5-5", input: 3000, output: 400, cacheRead: 4000, cacheWrite: 0 };
+check("prices a call from its tokens", Math.abs(priceUsd(call) - (3000 * 2 + 400 * 10 + 4000 * 0.1) / 1e6) < 1e-12, priceUsd(call));
+let bs = await billingStatus(wsId);
+check("new workspace is free with ₹50 of AI", bs.plan === "free" && bs.limitInr === 50 && bs.ok && bs.usedInr === 0, bs);
+for (let i = 0; i < 60; i++) await recordUsage(wsId, u.id, call); // 60 × ~₹0.92
+bs = await billingStatus(wsId);
+check("free credit runs out", !bs.ok && bs.leftInr === 0 && bs.usedInr > 50, { used: bs.usedInr, left: bs.leftInr });
+for (let i = 0; i < 2; i++) await db.insert(members).values({ workspaceId: wsId, email: `t${i}@x.com`, name: "T" + i, color: "#000" });
+let blocked = false; try { await assertCanAddMember(wsId); } catch (e) { blocked = e instanceof LimitError; }
+check("free plan stops at 3 people", blocked);
+await db.insert(payments).values({ workspaceId: wsId, userId: u.id, orderId: "order_test_1", amount: 99900 });
+const p1 = await activatePayment("order_test_1", "pay_1"), p2 = await activatePayment("order_test_1", "pay_1");
+bs = await billingStatus(wsId);
+check("payment activates Pro once (idempotent)", p1.ok && !(p1 as any).already && (p2 as any).already && bs.plan === "pro", { p1, p2, plan: bs.plan });
+check("Pro: fresh monthly budget, 10 people, ~30 days", bs.ok && bs.limitInr === 600 && bs.usedInr === 0 && bs.memberLimit === 10 && Math.round((bs.planUntil! - Date.now()) / 864e5) === 30, bs);
+await db.insert(payments).values({ workspaceId: wsId, userId: u.id, orderId: "order_test_2", amount: 99900 });
+await activatePayment("order_test_2", "pay_2");
+bs = await billingStatus(wsId);
+check("paying again extends Pro by 30 days", Math.round((bs.planUntil! - Date.now()) / 864e5) === 60, bs.planUntil);
+check("unknown order is refused", !(await activatePayment("order_nope", "x")).ok);
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

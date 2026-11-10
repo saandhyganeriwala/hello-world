@@ -805,7 +805,7 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
 
 /* funnel */
 .funnel{display:flex;flex-direction:column;align-items:center;gap:2px}
-.frow{width:100%;display:flex;flex-direction:column;align-items:center}
+.fn-row{width:100%;display:flex;flex-direction:column;align-items:center}
 .fbar{height:30px;border-radius:8px;opacity:.9;transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .flab{display:flex;gap:10px;align-items:baseline;margin:5px 0 3px;font-size:13.5px}
 .flab span{font-family:var(--mono);font-size:12px;color:var(--muted)}
@@ -949,6 +949,55 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
 .ob-ic.alt{background:var(--peacock);color:#fff}
 .inv-btn,.ob-ic{color:#141414}
 .cnt.bump{animation-name:bump}
+
+/* ---- slim view bar ---- */
+.vbar{display:flex;align-items:center;gap:6px;margin:-6px 0 14px}
+.vsp{flex:1}
+.vpick{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--fg);font-weight:700;font-size:14px;padding:6px 8px 6px 4px;margin-left:-4px;border-radius:10px}
+.vpick:active{background:var(--surface-2)}
+.vpick svg{width:16px;height:16px;color:var(--fg-2)}
+.vpick svg:last-child{width:14px;height:14px;color:var(--muted)}
+.vbtn{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--fg-2);font-weight:600;font-size:13px;padding:6px 9px;border-radius:9px}
+.vbtn svg{width:15px;height:15px}
+.vbtn:active{background:var(--surface-2)}
+.vbtn.on{background:var(--marigold-weak);color:var(--fg)}
+.vbtn i{font-style:normal;font-family:var(--mono);font-size:10.5px;background:var(--fg);color:var(--bg);border-radius:99px;padding:0 5px;margin-left:1px}
+.vi{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--surface-2);flex:none}
+.vi svg{width:17px!important;height:17px!important;color:var(--fg-2)!important}
+.newviews{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:0 4px 6px}
+.nv{display:flex;flex-direction:column;align-items:center;gap:4px;border:1.5px dashed var(--border-strong);background:transparent;border-radius:12px;padding:9px 4px;font-size:11.5px;font-weight:650;color:var(--fg-2)}
+.nv svg{width:18px;height:18px}
+.nv:active{background:var(--marigold-weak);border-style:solid}
+.ffields{display:flex;flex-wrap:wrap;gap:6px}
+/* ---- chat peek close + slim handle ---- */
+.pk-close{flex:none;width:30px;height:30px;border-radius:9px;border:0;background:transparent;display:grid;place-items:center;color:var(--muted);margin:-3px -4px 0 0}
+.pk-close svg{width:16px;height:16px}
+.pk-close:active{background:var(--surface-2)}
+.peek.slim{padding:6px var(--sar) 6px var(--sat);justify-content:center}
+.pk-slim{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.pk-slim svg{width:13px;height:13px;transform:rotate(180deg)}
+/* ---- plan & usage ---- */
+.credit-bar{flex:none;border:0;width:100%;background:var(--accent-weak);color:var(--fg);font-size:13px;font-weight:600;padding:9px var(--sar) 9px var(--sat);text-align:center}
+.credit-bar b{text-decoration:underline;text-underline-offset:2px}
+.credit-bar[hidden]{display:none}
+.plan-now{background:var(--surface-2);border-radius:16px;padding:14px;margin:0 4px 14px}
+.pn-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.pn-badge{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:7px;background:var(--surface);border:1.5px solid var(--border-strong)}
+.pn-badge.pro{background:var(--accent);border-color:var(--hard);color:#141414}
+.pn-until{font-size:13px;color:var(--fg-2)}
+.meter{height:8px;border-radius:99px;background:var(--surface-3);overflow:hidden}
+.meter i{display:block;height:100%;border-radius:99px;background:var(--good)}
+.meter i.warn{background:var(--warn)} .meter i.full{background:var(--danger)}
+.pn-stats{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.pn-stats b{color:var(--fg)}
+.pro-card{border:2px solid var(--hard);border-radius:18px;padding:16px;margin:0 4px 10px;box-shadow:0 4px 0 var(--hard);background:var(--surface)}
+.pc-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.pc-name{font-family:var(--display);font-size:19px;font-weight:750}
+.pc-price{font-family:var(--display);font-size:24px;font-weight:800}
+.pc-price small{font-family:var(--font);font-size:12px;font-weight:600;color:var(--muted);margin-left:3px}
+.pc-list{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.pc-list li{display:flex;gap:9px;align-items:flex-start}
+.pc-list svg{width:16px;height:16px;flex:none;color:var(--good);margin-top:2px}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.01ms!important;animation-iteration-count:1!important}}
 </style>
 </head>
@@ -978,6 +1027,7 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
     <div id="chatlog" hidden></div>
     <div class="mention" id="mention" hidden></div>
     <div class="listening" id="listening" hidden><span class="wave"><i></i><i></i><i></i><i></i></span><span id="listenHint">Listening…</span></div>
+    <button class="credit-bar" id="creditBar" hidden></button>
     <div class="ctx" id="ctx" hidden>
       <span class="ic" id="ctxIc"></span>
       <span class="t" id="ctxT"></span>
@@ -1023,6 +1073,8 @@ const P = {
   vgauge:'<path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5"/><circle cx="12" cy="15" r="1.4"/>',
   vtarget:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
   vtrophy:'<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6"/>',
+  filter:'<path d="M4 6h16M7 12h10M10 18h4"/>',
+  sort:'<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
   sliders:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   download:'<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
   drop:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
@@ -1153,6 +1205,8 @@ let view={mode:'home', section:null, recordId:null}; // home|list|detail
 let recentIds=new Set();      // freshly-added records to animate
 let newSection=null;          // section tab to pop
 let processing=false;
+let limitShown=false;      // the plan sheet pops up once a session when credit runs out
+let hiddenPeek=null;       // last message the user closed in the collapsed chat
 const lastCounts={};          // tab counts last drawn, to bump the badge when one grows
 const lastMetrics={};         // summary numbers last drawn, to count up to the new value
 let justToggled=null;         // task just ticked, to play the check animation
@@ -1230,7 +1284,7 @@ function render(){
   const m=activeMember();
   $('#whoBtn').style.background=m.color; $('#whoInit').textContent=initials(m.name);
   $('#whoMini').innerHTML=svg('chev');
-  renderTabs(); renderCanvas(); renderChat(); renderPeek(); setFlap(); renderCtx();
+  renderTabs(); renderCanvas(); renderChat(); renderPeek(); setFlap(); renderCtx(); creditBar();
 }
 function renderTabs(){
   const w=ws(), el=$('#tabs');
@@ -1410,12 +1464,137 @@ async function deleteView(section,name){ try{ const out=await api('POST','/works
 
 /* ---- the section screen ---- */
 let calMonth={}, calDay={};
+/* ---- which layouts make sense for this data ---- */
+function distinctVals(recs,f){ return [...new Set(recs.map(r=>String(val(r,f)).trim()).filter(Boolean))]; }
+function catFields(recs){ return fieldsOf(recs).filter(f=>{ if(/^(title|name|customer|note|notes|description|reason)$/i.test(f)) return false; const d=distinctVals(recs,f); return d.length>=2&&d.length<=12&&d.length<recs.length; }); }
+function relevantTypes(recs,kind){
+  const fs=fieldsOf(recs), num=detectMeasure(recs), date=detectDate(recs), stage=detectStage(recs), cats=catFields(recs), money=num&&isMoneyField(recs,num);
+  const T=['list','table'];
+  if(stage||cats.length) T.push('board'); if(stage) T.push('funnel');
+  if(date||kind==='meetings') T.push('calendar','agenda');
+  if(num||cats.length) T.push('chart'); if(num) T.push('metrics');
+  if(num&&(kind==='tracker'||fs.includes('Unit'))) T.push('tracker');
+  if(money&&(kind==='payments'||fs.some(f=>/^(type|direction)$/i.test(f)))) T.push('ledger');
+  if(num&&(cats.length||fs.some(f=>/customer|name|title|product|item/i.test(f)))) T.push('leaderboard');
+  return T; }
+
+/* ---- the slim bar: [view ▾] ........ [Filter] [Sort] ---- */
+function viewBar(name,v,all){
+  const nf=(v.filters||[]).length, sorted=!!(v.sortBy||v.groupBy);
+  const sortable=['list','table','board'].includes(v.type);
+  return '<div class="vbar"><button class="vpick" id="vPick" aria-label="Change view">'+svg(VIEW_ICON[v.type]||'vlist')+'<span>'+esc(v.name)+'</span>'+svg('chev')+'</button><span class="vsp"></span>'+
+    (all.length?'<button class="vbtn'+(nf?' on':'')+'" id="vFilter">'+svg('filter')+'<span>Filter</span>'+(nf?'<i>'+nf+'</i>':'')+'</button>':'')+
+    (all.length&&sortable?'<button class="vbtn'+(sorted?' on':'')+'" id="vSort">'+svg('sort')+'<span>Sort</span></button>':'')+'</div>'; }
+
+/* ---- Views sheet: switch view, add a view, edit this one ---- */
+function viewsSheet(){
+  const name=view.section, recs=ws().records.filter(r=>r.section===name), cur=activeView(name), vs=viewsFor(name), types=relevantTypes(recs,kindOf(name));
+  openSheet('<h3>Views</h3>'+vs.map(x=>'<button class="row-item" data-pickview="'+esc(x.name)+'"><span class="vi">'+svg(VIEW_ICON[x.type]||'vlist')+'</span><span>'+esc(x.name)+(x.name.toLowerCase()!==VIEW_LABEL[x.type].toLowerCase()?'<span class="sub">'+esc(VIEW_LABEL[x.type])+'</span>':'')+'</span>'+(x===cur?'<span class="rt">'+svg('check')+'</span>':'')+'</button>').join('')+
+    '<div class="sdiv"></div><div class="inv-h" style="margin:8px 6px 8px">Add a view</div><div class="newviews">'+types.map(t=>'<button class="nv" data-newview="'+t+'">'+svg(VIEW_ICON[t])+'<span>'+VIEW_LABEL[t]+'</span></button>').join('')+'</div>'+
+    '<div class="sdiv"></div><button class="row-item" id="vEdit"><span class="vi">'+svg('sliders')+'</span><span>Edit “'+esc(cur.name)+'”<span class="sub">Layout, fields, chart and goal settings</span></span></button>'+
+    '<button class="row-item" id="czCsv"><span class="vi">'+svg('download')+'</span><span>Export CSV</span></button>'+
+    '<div class="note">Or just ask CRUD — “show this as a pie chart by product”.</div>'); }
+function newView(type){
+  const name=view.section, recs=ws().records.filter(r=>r.section===name); const amt=detectMeasure(recs), stage=detectStage(recs)||catFields(recs)[0]||'', dateF=detectDate(recs);
+  const names=viewsFor(name).map(v=>v.name.toLowerCase()); let n=VIEW_LABEL[type], i=2; while(names.includes(n.toLowerCase())) n=VIEW_LABEL[type]+' '+(i++);
+  const v=mkView({name:n,type,measure:['chart','metrics','tracker','ledger','leaderboard','board'].includes(type)?amt:'',agg:amt&&type!=='board'?'sum':'count',dateField:dateF,
+    groupBy:['board','funnel'].includes(type)?stage:type==='chart'&&!amt?stage:type==='leaderboard'?(['Customer','Name','Product','Title'].find(f=>fieldsOf(recs).includes(f))||''):'',
+    chart:type==='chart'?(amt&&dateF?'bar':'donut'):'', bucket:type==='chart'&&amt&&dateF?'month':'', period:type==='tracker'?'day':'', unit:type==='tracker'?unitOf(recs):''});
+  closeSheet(); saveView(name,v); }
+
+/* ---- Filter sheet ---- */
+function filterSheet(){
+  const name=view.section, recs=ws().records.filter(r=>r.section===name), v=activeView(name), fs=fieldsOf(recs);
+  draft=JSON.parse(JSON.stringify(v)); draftFrom=v.name;
+  const f0=filterField&&fs.includes(filterField)?filterField:(detectStage(recs)||fs.find(f=>f!=='Title')||fs[0]);
+  filterField=f0; renderFilterSheet(); }
+let filterField='';
+function fieldKind(recs,f){ if(isDateField(recs,f)) return 'date'; if(isNumField(recs,f)) return 'num'; return 'text'; }
+function renderFilterSheet(){
+  const name=view.section, recs=ws().records.filter(r=>r.section===name), fs=fieldsOf(recs), f=filterField, k=fieldKind(recs,f), d=draft;
+  const ops=k==='num'?['gte','lte','eq','neq','empty','notEmpty']:k==='date'?['today','thisWeek','thisMonth','lastDays','gte','lte']:['eq','neq','contains','empty','notEmpty'];
+  const opName={gte:k==='date'?'on or after':'at least',lte:k==='date'?'on or before':'at most',eq:'is',neq:'is not',contains:'contains',empty:'is empty',notEmpty:'is filled',today:'is today',thisWeek:'is this week',thisMonth:'is this month',lastDays:'in the last … days'};
+  const vals=k==='text'?distinctVals(recs,f):[];
+  let h='<h3>Filter</h3>';
+  if(d.filters.length) h+='<div class="fchips" style="margin:0 2px 14px">'+d.filters.map((x,i)=>'<button class="fchip" data-czrm="'+i+'">'+esc(x.field)+' <i>'+esc(OP_LABEL[x.op])+'</i> '+esc(x.value)+(x.op==='lastDays'?' days':'')+svg('close')+'</button>').join('')+'<button class="linkish" id="fClear" style="font-size:13px;margin-left:4px">Clear all</button></div>';
+  h+='<div class="cz"><label class="cz-l">Show only records where</label><div class="ffields">'+fs.concat(['Created','By']).map(x=>'<button class="cz-f'+(x===f?' on':'')+'" data-ffield="'+esc(x)+'">'+esc(x==='Created'?'Date added':x==='By'?'Recorded by':x)+'</button>').join('')+'</div>';
+  if(vals.length&&vals.length<=14){ h+='<label class="cz-l">'+esc(f)+' is</label><div class="ffields">'+vals.map(x=>'<button class="cz-f" data-fval="'+esc(x)+'">'+esc(x)+'</button>').join('')+'</div>'; }
+  else { h+='<div class="cz-row" style="margin-top:8px"><select class="cz-in" id="fOp">'+ops.map(o=>'<option value="'+o+'">'+esc(opName[o])+'</option>').join('')+'</select></div>'+
+    '<div class="cz-row"><input class="cz-in" id="fVal" '+(k==='num'?'inputmode="decimal" placeholder="e.g. 10000"':k==='date'?'placeholder="e.g. 7 or 2026-11-01"':'placeholder="value"')+'><button class="btn primary" id="fAdd">Add</button></div>'; }
+  h+='</div>'; openSheet(h); }
+function addFilter(f){ draft.filters.push(f); saveView(view.section,draft,draftFrom); draft=JSON.parse(JSON.stringify(draft)); renderFilterSheet(); }
+
+/* ---- Sort & group sheet ---- */
+function sortSheet(){ const v=activeView(view.section); draft=JSON.parse(JSON.stringify(v)); draftFrom=v.name; renderSortSheet(); }
+function renderSortSheet(){
+  const name=view.section, recs=ws().records.filter(r=>r.section===name), v=draft, fs=fieldsOf(recs);
+  const groupable=['list','table'].includes(v.type);
+  openSheet('<h3>Sort'+(groupable?' & group':'')+'</h3><div class="cz">'+
+    '<label class="cz-l">Sort by</label><div class="ffields">'+['','Created'].concat(fs.filter(f=>f!=='Title')).map(x=>'<button class="cz-f'+((v.sortBy||'')===x?' on':'')+'" data-sortby="'+esc(x)+'">'+esc(x===''?'Latest update':x==='Created'?'Date added':x)+'</button>').join('')+'</div>'+
+    '<label class="cz-l">Order</label><div class="cz-seg"><button class="'+(v.sortDir!=='asc'?'on':'')+'" data-sortdir="desc">High → low · newest</button><button class="'+(v.sortDir==='asc'?'on':'')+'" data-sortdir="asc">Low → high · oldest</button></div>'+
+    (groupable?'<label class="cz-l">Group by</label><div class="ffields">'+[''].concat(catFields(recs)).map(x=>'<button class="cz-f'+((v.groupBy||'')===x?' on':'')+'" data-groupby="'+esc(x)+'">'+esc(x||'No grouping')+'</button>').join('')+'</div>':'')+
+    '</div>'); }
+
+function sheetViewClick(e){
+  const pv=e.target.closest('[data-pickview]'); if(pv){ setActiveView(view.section,pv.dataset.pickview); closeSheet(); renderCanvas(); return true; }
+  const nv=e.target.closest('[data-newview]'); if(nv){ newView(nv.dataset.newview); return true; }
+  if(e.target.closest('#vEdit')){ customizeSheet(); return true; }
+  const ff=e.target.closest('[data-ffield]'); if(ff){ filterField=ff.dataset.ffield; renderFilterSheet(); return true; }
+  const fv=e.target.closest('[data-fval]'); if(fv){ addFilter({field:filterField,op:'eq',value:fv.dataset.fval}); return true; }
+  if(e.target.closest('#fAdd')){ const op=$('#fOp').value, v=$('#fVal').value.trim(); if(v||['empty','notEmpty','today','thisWeek','thisMonth'].includes(op)) addFilter({field:filterField,op,value:v}); return true; }
+  if(e.target.closest('#fClear')){ draft.filters=[]; saveView(view.section,draft,draftFrom); draft=JSON.parse(JSON.stringify(draft)); renderFilterSheet(); return true; }
+  const rmf=e.target.closest('.fchips [data-czrm]'); if(rmf){ draft.filters.splice(+rmf.dataset.czrm,1); saveView(view.section,draft,draftFrom); draft=JSON.parse(JSON.stringify(draft)); renderFilterSheet(); return true; }
+  const sb=e.target.closest('[data-sortby]'); if(sb){ draft.sortBy=sb.dataset.sortby; if(!draft.sortDir) draft.sortDir='desc'; saveView(view.section,draft,draftFrom); renderSortSheet(); return true; }
+  const sd=e.target.closest('[data-sortdir]'); if(sd){ draft.sortDir=sd.dataset.sortdir; saveView(view.section,draft,draftFrom); renderSortSheet(); return true; }
+  const gb=e.target.closest('[data-groupby]'); if(gb){ draft.groupBy=gb.dataset.groupby; saveView(view.section,draft,draftFrom); renderSortSheet(); return true; }
+  return false; }
+
+/* ---------------- Plan & usage ---------------- */
+function bill(){ return ws().billing||null; }
+function rupees(n){ return '₹'+(Math.round(n*100)/100).toLocaleString('en-IN',{maximumFractionDigits:n<10?2:0}); }
+function planLine(){ const b=bill(); if(!b) return '';
+  return b.plan==='pro'?'Pro · until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'Free · '+rupees(b.leftInr)+' of '+rupees(b.limitInr)+' AI left'; }
+function planSheet(){
+  const b=bill(); if(!b){ toast('Loading…'); return; }
+  const pct=Math.min(100,b.limitInr?b.usedInr/b.limitInr*100:0), pro=b.plan==='pro';
+  let h='<h3>Plan & usage</h3><div class="plan-now"><div class="pn-top"><span class="pn-badge'+(pro?' pro':'')+'">'+(pro?'Pro':'Free')+'</span>'+
+    (pro?'<span class="pn-until">Active until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'long'})+'</span>':'')+'</div>'+
+    '<div class="meter"><i style="width:'+pct+'%" class="'+(pct>=100?'full':pct>80?'warn':'')+'"></i></div>'+
+    '<div class="pn-stats"><span><b>'+rupees(b.usedInr)+'</b> of '+rupees(b.limitInr)+' AI used'+(pro?' this month':'')+'</span><span>≈ '+b.actionsLeft+' actions left</span></div>'+
+    '<div class="pn-stats"><span>'+b.members+' of '+b.memberLimit+' people</span>'+(pro&&b.periodEnds?'<span>resets '+new Date(b.periodEnds).toLocaleDateString(undefined,{day:'numeric',month:'short'})+'</span>':'')+'</div></div>';
+  h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+rupees(b.priceInr)+'<small>/ 30 days</small></span></div><ul class="pc-list">'+
+    '<li>'+svg('check')+'Up to '+b.proMembers+' people in the workspace</li>'+
+    '<li>'+svg('check')+'About '+b.proActions.toLocaleString('en-IN')+' AI actions a month (fair use)</li>'+
+    '<li>'+svg('check')+'Questions, screenshots, imports and custom views</li></ul>'+
+    (b.paymentsReady?'<button class="auth-btn" id="payPro" style="width:100%">'+(pro?'Add 30 days · ':'Upgrade · ')+rupees(b.priceInr)+'</button><div class="note" style="text-align:center">Secure payment by Razorpay — UPI, cards, netbanking</div>'
+      :'<button class="auth-btn" disabled style="width:100%">Upgrades open soon</button>')+'</div>'+
+    '<div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>';
+  openSheet(h); }
+let rzpLoading=null;
+function loadRazorpay(){ if(window.Razorpay) return Promise.resolve(); if(rzpLoading) return rzpLoading;
+  rzpLoading=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://checkout.razorpay.com/v1/checkout.js'; s.onload=res; s.onerror=()=>{ rzpLoading=null; rej(new Error('Couldn’t load the payment window. Check your connection.')); }; document.head.appendChild(s); });
+  return rzpLoading; }
+async function payPro(btn){
+  const id=ws().id; if(btn){ btn.disabled=true; btn.textContent='Opening payment…'; }
+  try{
+    const [o]=await Promise.all([api('POST','/workspaces/'+id+'/billing/order'),loadRazorpay()]);
+    const rzp=new window.Razorpay({ key:o.keyId, order_id:o.orderId, amount:o.amount, currency:o.currency, name:o.name, description:o.description,
+      prefill:o.prefill, notes:{workspace:ws().name}, theme:{color:'#FFC31F'},
+      handler:async(resp)=>{ try{ const out=await api('POST','/workspaces/'+id+'/billing/verify',resp); applyServerState(out.state); closeSheet(); render(); celebrate(); }
+        catch(e){ toast(e.message); } },
+      modal:{ ondismiss:()=>{ if(btn){ btn.disabled=false; planSheet(); } } } });
+    rzp.on('payment.failed',r=>{ toast((r&&r.error&&r.error.description)||'Payment failed — no money was taken.'); });
+    rzp.open();
+  }catch(e){ toast(e.message); if(btn){ btn.disabled=false; planSheet(); } } }
+function celebrate(){ toast('Welcome to Pro! You’re all set.'); const m=$('#mark'); if(m){ m.classList.add('happy'); setTimeout(()=>m.classList.remove('happy'),1600); } buzz(30); }
+function creditBar(){ const b=bill(), el=$('#creditBar'); if(!el) return; if(b&&!b.ok){ el.hidden=false;
+  el.innerHTML=(b.plan==='pro'?'This month’s AI allowance is used up':'Your free AI credit is used up')+' · <b>'+(b.plan==='pro'?'See plan':'Upgrade')+'</b>'; } else el.hidden=true; }
+
 function renderViewArea(name,kind){
   const all=ws().records.filter(r=>r.section===name); const v=activeView(name); const views=viewsFor(name);
   const recs=sortRecs(applyFilters(all,v.filters),v,ws().sections[name]&&ws().sections[name].sort);
   const head=summaryHead(name,recs,kind);
-  const bar='<div class="vbar"><div class="vtabs" role="tablist">'+views.map(x=>'<button class="vtab'+(x===v?' on':'')+'" role="tab" aria-selected="'+(x===v)+'" data-view="'+esc(x.name)+'">'+svg(VIEW_ICON[x.type]||'vlist')+'<span>'+esc(x.name)+'</span></button>').join('')+'</div>'+
-    '<button class="vtool" id="vCustom" aria-label="Customize this view">'+svg('sliders')+'</button></div>';
+  const bar=viewBar(name,v,all);
   const chips=(v.filters||[]).length?'<div class="fchips">'+v.filters.map((f,i)=>'<button class="fchip" data-rmfilter="'+i+'" aria-label="Remove filter">'+esc(f.field)+' <i>'+esc(OP_LABEL[f.op]||f.op)+'</i> '+(['empty','notEmpty','today','thisWeek','thisMonth'].includes(f.op)?'':esc(f.value)+(f.op==='lastDays'?' days':''))+svg('close')+'</button>').join('')+'</div>':'';
   let body;
   if(!all.length) body='<div class="empty-note" style="padding:40px 12px">No records here yet.</div>';
@@ -1467,7 +1646,7 @@ const VIEW_RENDER={
     const gs=groupRecs(recs,by,order).filter(g=>g.key!=='—'&&!lostish.test(g.key)&&g.recs.length); const lost=recs.filter(r=>lostish.test(String(val(r,by)).trim())).length;
     const reached=gs.map((g,i)=>gs.slice(i).reduce((a,x)=>a+x.recs.length,0)); const top=Math.max(1,reached[0]||1);
     return '<div class="funnel">'+gs.map((g,i)=>{ const pct=i?Math.round(reached[i]/Math.max(1,reached[i-1])*100):null;
-      return (i?'<div class="fconv">'+pct+'% moved on</div>':'')+'<div class="frow"><div class="fbar" style="width:'+Math.max(14,reached[i]/top*100)+'%;background:'+seriesColor(0)+'" data-tip="'+esc(g.key)+': '+reached[i]+' reached, '+g.recs.length+' here now"></div><div class="flab"><b>'+esc(g.key)+'</b><span>'+reached[i]+' reached · '+g.recs.length+' here</span></div></div>'; }).join('')+
+      return (i?'<div class="fconv">'+pct+'% moved on</div>':'')+'<div class="fn-row"><div class="fbar" style="width:'+Math.max(14,reached[i]/top*100)+'%;background:'+seriesColor(0)+'" data-tip="'+esc(g.key)+': '+reached[i]+' reached, '+g.recs.length+' here now"></div><div class="flab"><b>'+esc(g.key)+'</b><span>'+reached[i]+' reached · '+g.recs.length+' here</span></div></div>'; }).join('')+
       (lost?'<div class="hint">'+lost+' lost or cancelled</div>':'')+'</div>'; },
   calendar(recs,v,name){
     const df=v.dateField||detectDate(recs); const key=name; const now=new Date(); const cm=calMonth[key]||new Date(now.getFullYear(),now.getMonth(),1);
@@ -1615,10 +1794,11 @@ function customizeSheet(){
 function opt(list,cur,none){ return (none!=null?'<option value="">'+esc(none)+'</option>':'')+list.map(x=>'<option'+(x===cur?' selected':'')+'>'+esc(x)+'</option>').join(''); }
 function renderCustomize(){
   const name=view.section, recs=ws().records.filter(r=>r.section===name), fs=fieldsOf(recs), nums=fs.filter(f=>isNumField(recs,f)), dates=fs.filter(f=>isDateField(recs,f)), d=draft, t=d.type;
-  const uses=k=>({group:['list','board','funnel','chart','leaderboard'],date:['calendar','agenda','tracker','chart','ledger'],measure:['board','funnel','chart','metrics','tracker','ledger','leaderboard'],sort:['list','table'],fields:['list','table']}[k]||[]).includes(t);
-  let h='<h3>Customize view</h3><div class="cz">'+
+  const uses=k=>({group:['board','funnel','chart','leaderboard'],date:['calendar','agenda','tracker','chart','ledger'],measure:['board','funnel','chart','metrics','tracker','ledger','leaderboard'],sort:[],fields:['list','table']}[k]||[]).includes(t);
+  const types=relevantTypes(recs,kindOf(name));
+  let h='<h3>Edit view</h3><div class="cz">'+
     '<label class="cz-l">Name</label><input class="cz-in" id="czName" value="'+esc(d.name)+'" maxlength="40">'+
-    '<label class="cz-l">Layout</label><div class="cz-types">'+VIEW_TYPES_UI.map(x=>'<button class="cz-t'+(x===t?' on':'')+'" data-cztype="'+x+'">'+svg(VIEW_ICON[x])+'<span>'+VIEW_LABEL[x]+'</span></button>').join('')+'</div>';
+    '<label class="cz-l">Layout</label><div class="cz-types">'+VIEW_TYPES_UI.filter(x=>types.includes(x)||x===t).map(x=>'<button class="cz-t'+(x===t?' on':'')+'" data-cztype="'+x+'">'+svg(VIEW_ICON[x])+'<span>'+VIEW_LABEL[x]+'</span></button>').join('')+'</div>';
   if(t==='chart') h+='<label class="cz-l">Chart</label><div class="cz-seg">'+['bar','line','area','pie','donut'].map(x=>'<button class="'+((d.chart||'bar')===x?'on':'')+'" data-czchart="'+x+'">'+x[0].toUpperCase()+x.slice(1)+'</button>').join('')+'</div>'+
     '<label class="cz-l">Over time</label><select class="cz-in" id="czBucket">'+opt(['day','week','month','year'],d.bucket,'No — by category')+'</select>';
   if(uses('group')&&!(t==='chart'&&d.bucket)) h+='<label class="cz-l">'+(t==='board'||t==='funnel'?'Columns from':'Group by')+'</label><select class="cz-in" id="czGroup">'+opt([...fs,'By'],d.groupBy,t==='list'?'No grouping':'Choose a field')+'</select>';
@@ -1628,9 +1808,7 @@ function renderCustomize(){
   if(t==='leaderboard') h+='<label class="cz-l">Show top</label><input class="cz-in" id="czLimit" inputmode="numeric" value="'+(d.limit||10)+'">';
   if(uses('sort')) h+='<label class="cz-l">Sort</label><div class="cz-row"><select class="cz-in" id="czSort">'+opt([...fs,'Created','Updated'],d.sortBy,'Latest first')+'</select><select class="cz-in" id="czDir"><option value="desc"'+(d.sortDir!=='asc'?' selected':'')+'>High → low · newest</option><option value="asc"'+(d.sortDir==='asc'?' selected':'')+'>Low → high · oldest</option></select></div>';
   if(uses('fields')) h+='<label class="cz-l">Show fields</label><div class="cz-fields">'+fs.map(f=>'<button class="cz-f'+(!d.fields.length||d.fields.includes(f)?' on':'')+'" data-czfield="'+esc(f)+'">'+esc(f)+'</button>').join('')+'</div>';
-  h+='<label class="cz-l">Filters</label><div class="cz-filters">'+(d.filters.length?d.filters.map((f,i)=>'<div class="cz-filter"><span>'+esc(f.field)+' <i>'+esc(OP_LABEL[f.op])+'</i> '+esc(f.value)+'</span><button class="iconbtn" data-czrm="'+i+'" aria-label="Remove">'+svg('close')+'</button></div>').join(''):'<div class="note" style="padding:2px 2px 6px">No filters — showing everything.</div>')+
-    '<div class="cz-row"><select class="cz-in" id="czFf">'+opt([...fs,'Created','By'],'')+'</select><select class="cz-in" id="czFo">'+Object.keys(OP_LABEL).map(o=>'<option value="'+o+'">'+esc(OP_LABEL[o])+'</option>').join('')+'</select></div>'+
-    '<div class="cz-row"><input class="cz-in" id="czFv" placeholder="value"><button class="btn" id="czFadd">'+svg('plus')+'Add</button></div></div>'+
+  h+=
     '<div class="cz-actions"><button class="btn primary grow" id="czSave">Save view</button><button class="btn" id="czNew">Save as new</button></div>'+
     '<div class="cz-actions"><button class="btn grow" id="czCsv">'+svg('download')+'Export CSV</button>'+(activeView(name).custom?'<button class="btn danger" id="czDel">'+svg('trash')+'Delete view</button>':'')+'</div></div>';
   openSheet(h);
@@ -1660,7 +1838,9 @@ function exportCSV(name){ const v=activeView(name); const recs=sortRecs(applyFil
 function viewClick(e){
   if(Date.now()-dragJustEnded<350){ e.preventDefault(); return true; }
   const vt=e.target.closest('[data-view]'); if(vt){ setActiveView(view.section,vt.dataset.view); renderCanvas(); return true; }
-  if(e.target.closest('#vCustom')){ customizeSheet(); return true; }
+  if(e.target.closest('#vPick')){ viewsSheet(); return true; }
+  if(e.target.closest('#vFilter')){ filterSheet(); return true; }
+  if(e.target.closest('#vSort')){ sortSheet(); return true; }
   const rf=e.target.closest('[data-rmfilter]'); if(rf){ const v=JSON.parse(JSON.stringify(activeView(view.section))); v.filters.splice(+rf.dataset.rmfilter,1); saveView(view.section,v); return true; }
   const cn=e.target.closest('[data-calnav]'); if(cn){ const k=view.section; const now=new Date(); const cm=calMonth[k]||new Date(now.getFullYear(),now.getMonth(),1); calMonth[k]=new Date(cm.getFullYear(),cm.getMonth()+ +cn.dataset.calnav,1); calDay[k]=null; renderCanvas(); return true; }
   const cd=e.target.closest('[data-calday]'); if(cd){ const k=view.section; calDay[k]=calDay[k]===+cd.dataset.calday?null:+cd.dataset.calday; renderCanvas(); return true; }
@@ -1909,6 +2089,8 @@ function renderPeek(){
   if($('#chat').classList.contains('expanded')){ peek.hidden=true; return; }
   const last=w.messages[w.messages.length-1];
   if(!last){ peek.hidden=true; peek.innerHTML=''; return; }
+  if(hiddenPeek===last.id){ peek.hidden=false; peek.classList.add('slim'); peek.innerHTML='<span class="pk-slim">'+svg('collapse')+'Team chat</span>'; return; }
+  peek.classList.remove('slim');
   peek.hidden=false;
   const isBot=last.role==='assistant';
   const mem=isBot?{name:'CRUD'}:(w.members.find(x=>x.id===last.author)||{name:last.authorName||'Someone',color:'#888'});
@@ -1919,7 +2101,7 @@ function renderPeek(){
   else if(last.tag) inner+='<span class="tag"'+(last.rid?' data-open="'+last.rid+'"':'')+'>'+svg(last.tagIcon||'checkc')+esc(last.tag)+'</span>';
   peek.innerHTML='<span class="ava'+(isBot?' bot':'')+'"'+(isBot?'':' style="background:'+mem.color+'"')+'>'+(isBot?eyes():esc(initials(mem.name)))+'</span>'+
     '<div class="pk-body"><div class="who">'+esc(mem.name)+'</div>'+inner+'</div>'+
-    '<button class="pk-expand" aria-label="Expand chat">'+svg('expand')+'</button>';
+    '<button class="pk-close" aria-label="Hide this message">'+svg('close')+'</button>';
 }
 
 /* ---------------- Navigation ---------------- */
@@ -1978,6 +2160,7 @@ async function sendMessage(text, images, thumbs){
   if(view.mode==='list'&&!ws().sections[view.section]) view={mode:ws().order.length?'list':'home',section:ws().order[0]||null,recordId:null};
   if(view.mode==='home'&&ws().order.length) view={mode:'list',section:ws().order[0],recordId:null};
   if(r.kind==='command'){ const nw=state.list.find(x=>x.id===ws().id); if(nw) nw.name=ws().name; }
+  if(r.kind==='limit'&&!limitShown){ limitShown=true; setTimeout(planSheet,700); }
   updateSend(); render(); applyTheme();
   if(view.mode==='list') $('#canvas').scrollTop=0;
   setTimeout(()=>{recentIds=new Set();},1400);
@@ -2067,6 +2250,7 @@ async function resetInvite(){ try{ const out=await api('POST','/workspaces/'+ws(
 function menuSheet(){
   const u=state.user||{}, n=ws().members.length;
   openSheet('<h3>'+esc(ws().name)+'</h3>'+
+    '<button class="row-item" id="mPlan"><span>'+svg('spark')+'</span><span>Plan & usage<span class="sub">'+esc(planLine())+'</span></span></button>'+
     '<button class="row-item" id="mTeam"><span>'+svg('people')+'</span><span>Team<span class="sub">'+n+' member'+(n>1?'s':'')+'</span></span></button>'+
     '<button class="row-item" id="mWs"><span>'+svg('swap')+'</span><span>Switch or add workspace</span></button>'+
     '<button class="row-item" id="mSearch"><span>'+svg('search')+'</span><span>Search records</span></button>'+
@@ -2359,8 +2543,10 @@ function bind(){
   $('#menuBtn').onclick=menuSheet;
   $('#wsBtn').onclick=workspaceSheet;
   $('#whoBtn').onclick=teamSheet;
+  $('#creditBar').onclick=planSheet;
   $('#collapseBtn').onclick=collapseChat;
-  $('#peek').addEventListener('click',e=>{ const t=e.target.closest('[data-open]'); if(t){ openRecord(t.dataset.open); return; } expandChat(); });
+  $('#peek').addEventListener('click',e=>{ if(e.target.closest('.pk-close')){ const m=ws().messages; hiddenPeek=m.length?m[m.length-1].id:null; renderPeek(); return; }
+    const t=e.target.closest('[data-open]'); if(t){ openRecord(t.dataset.open); return; } expandChat(); });
 
   // Canvas (delegation)
   $('#canvas').addEventListener('click',e=>{
@@ -2432,6 +2618,9 @@ async function armDelete(btn){
   render();
 }
 function sheetClick(e){
+  if(e.target.closest('#payPro')){ payPro(e.target.closest('#payPro')); return; }
+  if(e.target.closest('#mPlan')){ planSheet(); return; }
+  if(sheetViewClick(e)) return;
   if(customizeClick(e)) return;
   const wsItem=e.target.closest('[data-ws]'); if(wsItem){ closeSheet(); switchWorkspace(wsItem.dataset.ws); return; }
   const rm=e.target.closest('[data-rmmem]'); if(rm){ removeMember(rm.dataset.rmmem); return; }
@@ -2453,7 +2642,7 @@ async function createWorkspace(){ const inp=$('#newWs'); const name=inp.value.tr
   catch(e){ toast(e.message); } }
 async function addMember(){ const n=$('#newMemName'), p=$('#newMem'); if(!n||!p||!n.value.trim()||!p.value.trim()) return;
   try{ const out=await api('POST','/workspaces/'+ws().id+'/members',{name:n.value.trim(),contact:p.value.trim()}); applyServerState(out.state); teamSheet(); render(); }  // the new "Invited" row is the confirmation
-  catch(e){ toast(e.message); } }
+  catch(e){ toast(e.message); if(e.status===402) setTimeout(planSheet,400); } }
 async function removeMember(memberId){
   try{ const out=await api('DELETE','/workspaces/'+ws().id+'/members/'+memberId); applyServerState(out.state); teamSheet(); render(); }
   catch(e){ toast(e.message); } }

@@ -5,6 +5,7 @@ import { members, messages, records, sections, workspaces } from "../db/schema.j
 import type { AuthUser } from "../auth/session.js";
 import { maskContact } from "../lib/identity.js";
 import { MEMBER_COLORS } from "./helpers.js";
+import { billingStatus } from "./billing.js";
 import crypto from "node:crypto";
 
 // No 0/o/1/l/i, so a code read aloud or typed from a screenshot comes out right.
@@ -67,12 +68,14 @@ export async function loadState(workspaceId: string, userId: string) {
   ]);
   const secName = new Map(secs.map((s) => [s.id, s.name]));
   const inviteCode = await ensureInviteCode(w.id, w.inviteCode);
+  const billing = await billingStatus(w.id);
   const me = mem.find((m) => m.userId === userId);
   return {
     id: w.id,
     name: w.name,
     accent: w.accent,
     inviteCode,
+    billing,
     me: userId,
     active: userId,
     role: me?.role ?? "member",

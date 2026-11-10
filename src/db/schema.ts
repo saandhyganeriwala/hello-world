@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
-  boolean, index, integer, json, pgTable, text, timestamp, uniqueIndex, uuid,
+  boolean, doublePrecision, index, integer, json, pgTable, text, timestamp, uniqueIndex, uuid,
 } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -43,6 +43,10 @@ export const workspaces = pgTable("workspaces", {
   accent: text("accent"),
   // Shareable code for invite links (/app/join/<code>). Anyone logged in with it can join.
   inviteCode: text("invite_code").unique(),
+  // Billing: "free" (₹50 of AI) or "pro" until plan_until. Fair usage resets every 30 days from period_start.
+  plan: text("plan").notNull().default("free"),
+  planUntil: ts("plan_until"),
+  periodStart: ts("period_start"),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
@@ -111,3 +115,33 @@ export const messages = pgTable("messages", {
   recordId: uuid("record_id"),
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [index("messages_ws_created_idx").on(t.workspaceId, t.createdAt)]);
+
+// One row per Claude call, priced in rupees from its token counts.
+export const aiUsage = pgTable("ai_usage", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  label: text("label").notNull(),                 // understand, understand+image, import-plan
+  model: text("model").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+  cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+  costUsd: doublePrecision("cost_usd").notNull().default(0),
+  costInr: doublePrecision("cost_inr").notNull().default(0),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("ai_usage_ws_time_idx").on(t.workspaceId, t.createdAt)]);
+
+// Razorpay orders and what became of them. Paying is idempotent per order.
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  orderId: text("order_id").notNull().unique(),
+  paymentId: text("payment_id"),
+  amount: integer("amount").notNull(),            // paise
+  currency: text("currency").notNull().default("INR"),
+  status: text("status").notNull().default("created"), // created | paid
+  createdAt: ts("created_at").notNull().defaultNow(),
+  paidAt: ts("paid_at"),
+});

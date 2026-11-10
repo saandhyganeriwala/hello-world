@@ -14,7 +14,7 @@ export type LooseOp = {
   op?: string; action?: string; section?: string; sectionIcon?: string; sectionKind?: string;
   recordId?: string | null; status?: string;
   fields?: { key: string; value: string }[] | Record<string, unknown>;
-  sectionView?: unknown[];
+  sectionView?: unknown;
 };
 
 const SNAPSHOT_RECORDS = 150;
@@ -114,8 +114,7 @@ export async function applyOps(tx: Tx, ctx: Ctx, ops: LooseOp[]) {
       kind = "create"; // nothing matched — record it as new
     }
 
-    const sec = await ensureSection(tx, ctx.workspaceId, op.section || "Notes", op.sectionIcon, op.sectionKind,
-      Array.isArray(op.sectionView) ? op.sectionView[0] : undefined);
+    const sec = await ensureSection(tx, ctx.workspaceId, op.section || "Notes", op.sectionIcon, op.sectionKind, op.sectionView);
     secName.set(sec.id, sec.name);
     isNew = isNew || sec.isNew;
     const fields = Object.keys(opFields).length ? opFields : { Note: ctx.messageText || "" };
@@ -236,7 +235,7 @@ export async function applyCommands(tx: Tx, ctx: Ctx, cmds: CommandT[] | any[]) 
         summary.push("updated the look");
       } else if (type === "addview") {
         const s = await findSection(tx, ws, c.section || c.name);
-        const v = sanitizeView(Array.isArray(c.view) ? c.view[0] : c.view);
+        const v = sanitizeView(c.view);
         if (s && v) {
           await tx.update(sections).set({ views: upsertView(s.views, v) }).where(eq(sections.id, s.id));
           goto = s.name; gotoView = v.name; summary.push(`showing “${s.name}” as ${v.name}`);

@@ -120,6 +120,30 @@ The email is built in `src/auth/email.ts`.
 
 The request is built in `src/auth/interakt.ts`.
 
+## Plans, usage and payments
+
+Every Claude call is priced from its token counts (input, output, cache reads and writes, at the
+model's per-million prices in `src/domain/billing.ts`) and stored in `ai_usage` against the workspace.
+
+| Plan | Price | AI | People |
+|---|---|---|---|
+| Free | ₹0 | ₹50 of AI, once (`FREE_CREDIT_INR`) | 3 (`FREE_MEMBERS`) |
+| Pro | ₹999 per 30 days (`PRO_PRICE_INR`) | fair use: ₹600 of AI per 30 days (`PRO_MONTHLY_AI_INR`), shown as ≈ 650 actions | 10 (`PRO_MEMBERS`) |
+
+When a workspace runs out, CRUD still saves plain records with the on-device parser; questions,
+screenshots, imports and interface changes ask for an upgrade. Viewing, editing and searching never cost.
+The *Plan & usage* screen (menu → Plan & usage) shows what's used and what's left.
+
+**Razorpay** (Pro is a one-time payment per 30 days; paying again extends it):
+1. Razorpay Dashboard → *Account & Settings → API Keys* → generate keys (use **Test Mode** first) →
+   set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` on Railway.
+2. *Account & Settings → Webhooks → Add New Webhook* → URL `https://crud.chat/api/billing/razorpay-webhook`,
+   events **payment.captured** and **order.paid**, a secret of your choice → set it as `RAZORPAY_WEBHOOK_SECRET`.
+3. Test with a test card or UPI ID `success@razorpay`, then switch to live keys.
+
+The browser verifies each payment's signature with the server, and the webhook does the same from
+Razorpay's side; activation is idempotent per order. Code: `src/routes/billing.ts`.
+
 ## Costs
 
 Each Claude call logs one JSON line with its token counts, e.g.

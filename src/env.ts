@@ -6,6 +6,7 @@ const bool = (v: string | undefined, d = false) =>
 
 const isProd = process.env.NODE_ENV === "production";
 
+const num = (v: string | undefined, d: number) => { const n = Number(v); return Number.isFinite(n) && v !== "" && v != null ? n : d; };
 export const env = {
   isProd,
   port: Number(process.env.PORT || 3000),
@@ -56,6 +57,22 @@ export const env = {
   },
 
   defaultCountry: (process.env.DEFAULT_COUNTRY || "IN") as any,
+
+  // ---- Plans & usage ----
+  // Every Claude call is priced from its token counts (USD) and converted to rupees.
+  usdInr: num(process.env.USD_INR, 88),
+  freeCreditInr: num(process.env.FREE_CREDIT_INR, 50),        // free AI credit per workspace
+  freeMembers: num(process.env.FREE_MEMBERS, 3),
+  proPriceInr: num(process.env.PRO_PRICE_INR, 999),           // per 30 days
+  proDays: num(process.env.PRO_DAYS, 30),
+  proMembers: num(process.env.PRO_MEMBERS, 10),
+  proMonthlyAiInr: num(process.env.PRO_MONTHLY_AI_INR, 600),  // fair-usage AI budget per 30 days
+  // ---- Razorpay (payments) ----
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID || "",
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || "",
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
+  razorpayBaseUrl: (process.env.RAZORPAY_BASE_URL || "https://api.razorpay.com/v1").replace(/\/$/, ""),
+  get paymentsReady() { return !!(this.razorpayKeyId && this.razorpayKeySecret); },
 };
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";

@@ -15,6 +15,7 @@ import { processMessage, type ImageInput } from "../domain/messages.js";
 import { applyImport, fallbackPlan, type Sheet } from "../domain/import.js";
 import { cleanKey, esc } from "../domain/helpers.js";
 import { removeView, sanitizeView, upsertView } from "../domain/views.js";
+import { assertCanAddMember, billingStatus, LimitError, proActions, recordUsage } from "../domain/billing.js";
 import { publish, subscribe } from "../realtime.js";
 
 export const api = new Hono<AppEnv>();
@@ -26,7 +27,11 @@ const bigBody = bodyLimit({ maxSize: 25 * 1024 * 1024, onError: (c) => c.json({ 
 // ---------- public ----------
 
 api.get("/health", (c) => c.json({ ok: true }));
-api.get("/config", (c) => c.json({ otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod }));
+api.get("/config", (c) => c.json({
+  otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod,
+  plans: { freeCreditInr: env.freeCreditInr, freeMembers: env.freeMembers, proPriceInr: env.proPriceInr, proDays: env.proDays,
+    proMembers: env.proMembers, proActions: proActions(), paymentsReady: env.paymentsReady },
+}));
 
 // The login box sends { identifier } — an email or a phone number, per LOGIN_METHOD.
 const identifierOf = (b: Record<string, any>) => b.identifier ?? b.email ?? b.phone;
@@ -132,6 +137,10 @@ api.post("/invites/:code/join", async (c) => {
     const [invited] = mine.length
       ? await db.select({ id: members.id }).from(members).where(and(eq(members.workspaceId, w.id), isNull(members.userId), or(...mine))).limit(1)
       : [];
+    if (!invited) {
+      try { await assertCanAddMember(w.id); }
+      catch (e) { if (e instanceof LimitError) return c.json({ error: `${w.name} is full on its current plan — ask the owner to upgrade.`, limit: true }, 402); throw e; }
+    }
     if (invited) await db.update(members).set({ userId: user.id, name: user.name }).where(eq(members.id, invited.id));
     else await db.insert(members).values({
       workspaceId: w.id, userId: user.id, email: user.email, phone: user.phone, name: user.name, role: "member", color: await nextColor(db, w.id),
@@ -192,6 +201,7 @@ api.post("/workspaces/:id/members", async (c) => {
   const [exists] = await db.select({ id: members.id }).from(members)
     .where(and(eq(members.workspaceId, id), eq(memberCol, who.value))).limit(1);
   if (exists) return c.json({ error: `That ${who.kind === "email" ? "email" : "number"} is already in this workspace.` }, 409);
+  try { await assertCanAddMember(id); } catch (e) { if (e instanceof LimitError) return c.json({ error: e.message, limit: true }, 402); throw e; }
   const [u] = await db.select({ id: users.id }).from(users).where(eq(userCol, who.value)).limit(1);
   await db.insert(members).values({
     workspaceId: id, userId: u?.id ?? null, name, color: await nextColor(db, id),
@@ -286,7 +296,7 @@ api.post("/workspaces/:id/import", bigBody, async (c) => {
   changed(c, id);
 
   let plan = null;
-  if (aiEnabled()) {
+  if (aiEnabled() && (await billingStatus(id)).ok) {
     try {
       const existing = await db.select({ name: sections.name, kind: sections.kind }).from(sections).where(eq(sections.workspaceId, id));
       plan = await planImport({
@@ -295,6 +305,7 @@ api.post("/workspaces/:id/import", bigBody, async (c) => {
           sample: s.rows.slice(0, 20).map((r) => Object.fromEntries(Object.entries(r).slice(0, 40).map(([k, v]) => [k, v.slice(0, 60)]))),
         })),
         existing,
+        onUsage: (u) => recordUsage(id, user.id, u),
       });
     } catch (e) { console.error("[ai] import plan failed", e); }
   }

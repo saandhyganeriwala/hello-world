@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { messages, records } from "../db/schema.js";
 import { aiEnabled, understand } from "../ai/claude.js";
@@ -6,6 +6,8 @@ import type { UnderstandingT } from "../ai/schemas.js";
 import { publish } from "../realtime.js";
 import { applyCommands, applyOps, buildSnapshot, type Ctx, type Effect } from "./apply.js";
 import { localStructure, looksLikeQuestion } from "./localParser.js";
+import { billingStatus, recordUsage, type Billing } from "./billing.js";
+import { env } from "../env.js";
 
 export type ImageInput = { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" };
 
@@ -19,7 +21,7 @@ export type SendInput = {
 };
 
 export type SendResult = {
-  kind: UnderstandingT["kind"] | "fallback" | "error";
+  kind: UnderstandingT["kind"] | "fallback" | "error" | "limit";
   section: string | null;
   rid: string | null;
   touched: string[];
@@ -29,6 +31,16 @@ export type SendResult = {
 };
 
 const addressed = (t: string) => /^\s*@?\s*crud\b/i.test(t) || /^\s*hey\s+crud\b/i.test(t);
+// "Add a filter…", "Create a water tracker…", "Show orders as a chart" — instructions, never notes.
+const looksLikeCommand = (t: string) =>
+  /^\s*(pls|please|kindly|can you|could you|i want|i need|let'?s)?\s*(add|create|make|set ?up|build|show|display|filter|sort|group|rename|delete|remove|change|hide|turn|switch|track|start tracking|give me)\b/i.test(t)
+  && /\b(filter|sort|group|view|chart|graph|pie|kanban|board|pipeline|tracker|dashboard|table|calendar|column|field|section|tab|theme|colou?r|accent|workspace|track)\b/i.test(t);
+
+function limitMessage(b: Billing) {
+  return b.plan === "pro"
+    ? `You've used this month's fair-usage AI allowance — it resets on ${new Date(b.periodEnds ?? Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}. Plain records are still saved.`
+    : `You've used your free ₹${env.freeCreditInr} of AI. Upgrade to Pro (₹${env.proPriceInr}/month) to keep asking questions, reading screenshots and changing views. Plain records are still saved.`;
+}
 
 async function botReply(workspaceId: string, text: string) {
   await getDb().insert(messages).values({ workspaceId, role: "assistant", authorName: "CRUD", text });
@@ -64,9 +76,12 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
 
   let ai: UnderstandingT | null = null;
   let aiFailed = false;
-  if (aiEnabled()) {
+  const bill = aiEnabled() ? await billingStatus(ws) : null;
+  const outOfCredit = !!bill && !bill.ok;
+  if (aiEnabled() && !outOfCredit) {
     try {
       ai = await understand({
+        onUsage: (u) => recordUsage(ws, ctx.userId, u),
         text: input.text, snapshot: await buildSnapshot(ws), contextRecordId: input.contextRecordId, images: input.images,
         viewing: input.viewing ?? null,
       });
@@ -100,16 +115,19 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
       result.kind = "chatter"; // a "record" with nothing to record
     } else {
       // Claude unavailable (no key, outage, refusal): fall back gracefully.
-      if (hasImg) {
+      if (outOfCredit && (hasImg || addressed(input.text) || looksLikeQuestion(input.text) || looksLikeCommand(input.text))) {
+        result.kind = "limit";
+        await botReply(ws, limitMessage(bill!));
+      } else if (hasImg) {
         result.kind = "error";
         await botReply(ws, aiEnabled()
-          ? "I couldn't read that screenshot just now. Try again in a moment."
+          ? "Sorry — I couldn't read that screenshot just now. Please try again in a moment."
           : "I can't read screenshots yet — my AI isn't switched on for this workspace. Type it out and I'll still save it.");
-      } else if (addressed(input.text) || looksLikeQuestion(input.text)) {
+      } else if (addressed(input.text) || looksLikeQuestion(input.text) || looksLikeCommand(input.text)) {
         result.kind = "error";
         await botReply(ws, aiEnabled()
-          ? "I couldn't reach my brain just now — try again in a moment."
-          : "I can't answer questions yet — my AI isn't switched on for this workspace. Everything you record is still saved.");
+          ? "Sorry — something went wrong on my side and I couldn't do that. Please try again in a moment."
+          : "I can't answer questions or change the layout yet — my AI isn't switched on for this workspace. Everything you record is still saved.");
       } else {
         result.kind = "fallback";
         const recs = (await buildSnapshot(ws)).records;
@@ -118,6 +136,12 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
         Object.assign(result, { section: out.section, rid: out.rid, touched: out.touched, isNew: out.isNew });
         tag = { tag: out.tag, tagIcon: out.tagIcon, recordId: out.rid };
         if (aiFailed) console.warn("[ai] used local fallback after an AI failure");
+        if (outOfCredit) {
+          // Nudge once in a while, not on every record.
+          const [last] = await db.select({ text: messages.text, role: messages.role }).from(messages)
+            .where(eq(messages.workspaceId, ws)).orderBy(desc(messages.createdAt)).limit(1).offset(1);
+          if (!(last?.role === "assistant" && last.text.startsWith("You've used"))) { result.kind = "limit"; await botReply(ws, limitMessage(bill!)); }
+        }
       }
     }
   } catch (e) {

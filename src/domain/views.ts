@@ -26,6 +26,8 @@ const TYPE_NAMES: Record<string, string> = {
 };
 
 export function sanitizeView(raw: any): View | null {
+  if (typeof raw === "string") { const t = raw.trim(); if (!t) return null; try { raw = JSON.parse(t.replace(/^```(json)?|```$/g, "")); } catch { return null; } }
+  if (Array.isArray(raw)) raw = raw[0];
   if (!raw || typeof raw !== "object") return null;
   const type = oneOf(raw.type, VIEW_TYPES, "list");
   const filter = (f: any) => ({ field: str(f?.field), op: oneOf(f?.op, OPS, "eq"), value: str(f?.value, 120) });

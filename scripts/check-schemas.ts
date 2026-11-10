@@ -20,9 +20,9 @@ for (const [name, s] of [["Understanding", Understanding], ["ImportPlan", Import
   console.log(`  union-typed params (API limit 16 per request): ${unions.length}${unions.length ? " → " + unions.join(", ") : ""}`); unions.length = 0;
 }
 // round-trip a realistic response through the parser
-const sample = { kind: "record", operations: [{ op: "create", section: "Orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: [],
+const sample = { kind: "record", operations: [{ op: "create", section: "Orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: "",
   fields: [{ key: "Title", value: "A" }, { key: "Amount", value: "₹2,000" }] }], commands: [], answer: "", focus: "" };
 const view = { name: "Pipeline", type: "board", groupBy: "Status", groups: ["New","Won"], dateField: "", measure: "Amount", agg: "sum", chart: "", bucket: "", fields: [], filters: [{ field: "Status", op: "neq", value: "Lost" }], sortBy: "", sortDir: "", goal: 0, unit: "", period: "", metrics: [], highlight: [], limit: 0 };
-const cmd = { kind: "command", operations: [], commands: [{ type: "addView", section: "Leads", from: "", to: "", into: "", name: "", kind: "", icon: "", field: "", value: "", by: "", dir: "", mode: "", accent: "", order: [], view: [view] }], answer: "Done", focus: "Leads" };
+const cmd = { kind: "command", operations: [], commands: [{ type: "addView", section: "Leads", from: "", to: "", into: "", name: "", kind: "", icon: "", field: "", value: "", by: "", dir: "", mode: "", accent: "", order: [], view: JSON.stringify(view) }], answer: "Done", focus: "Leads" };
 console.log("parse addView sample:", Understanding.safeParse(cmd).success);
 console.log("parse sample:", Understanding.safeParse(sample).success);

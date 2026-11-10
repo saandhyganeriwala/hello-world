@@ -5,13 +5,16 @@ import { secureHeaders } from "hono/secure-headers";
 import { assertProdConfig, env } from "./env.js";
 import { initDb } from "./db/client.js";
 import { api } from "./routes/api.js";
+import { billing } from "./routes/billing.js";
 
 assertProdConfig();
 await initDb();
 
 const app = new Hono();
-app.use("*", secureHeaders({ crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: false }));
+// Razorpay Checkout opens popups for some payment methods (UPI apps, netbanking), so allow them.
+app.use("*", secureHeaders({ crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: false, crossOriginOpenerPolicy: "same-origin-allow-popups" }));
 
+app.route("/api", billing);
 app.route("/api", api);
 app.notFound((c) => (c.req.path.startsWith("/api/") ? c.json({ error: "Not found." }, 404) : c.text("Not found", 404)));
 app.onError((err, c) => {
