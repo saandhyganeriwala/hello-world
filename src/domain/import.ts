@@ -30,7 +30,7 @@ export function fallbackPlan(sheets: Sheet[]): ImportPlanT {
           sheet: s.name,
           sections: values.map((v) => ({
             name: tabName(v), kind: inferKind(v), icon: "", titleField, statusField: "",
-            fields: cols.map((h) => ({ name: h, source: h })), match: { column: typeCol, values: [v] },
+            fields: cols.map((h) => ({ name: h, source: h })), matchColumn: typeCol, matchValues: [v],
           })),
         };
       }
@@ -38,17 +38,17 @@ export function fallbackPlan(sheets: Sheet[]): ImportPlanT {
         sheet: s.name,
         sections: [{
           name: s.name || "Imported", kind: inferKind(s.name || ""), icon: "", titleField: s.headers[0] ?? "",
-          statusField: "", fields: s.headers.map((h) => ({ name: h, source: h })), match: null,
+          statusField: "", fields: s.headers.map((h) => ({ name: h, source: h })), matchColumn: "", matchValues: [],
         }],
       };
     }),
   };
 }
 
-function selectRows(rows: Sheet["rows"], match: { column: string; values: string[] } | null) {
-  if (!match?.column || !match.values?.length) return rows;
-  const vals = new Set(match.values.map((v) => String(v).toLowerCase().trim()));
-  return rows.filter((r) => r[match.column] != null && vals.has(String(r[match.column]).toLowerCase().trim()));
+function selectRows(rows: Sheet["rows"], column: string, values: string[]) {
+  if (!column || !values?.length) return rows;
+  const vals = new Set(values.map((v) => String(v).toLowerCase().trim()));
+  return rows.filter((r) => r[column] != null && vals.has(String(r[column]).toLowerCase().trim()));
 }
 
 export async function applyImport(tx: Tx, ctx: Ctx, sheets: Sheet[], plan: ImportPlanT) {
@@ -70,7 +70,7 @@ export async function applyImport(tx: Tx, ctx: Ctx, sheets: Sheet[], plan: Impor
       const mapping = sec.fields?.length ? sec.fields : src.headers.map((h) => ({ name: h, source: h }));
 
       const batch: (typeof records.$inferInsert)[] = [];
-      for (const row of selectRows(src.rows, sec.match)) {
+      for (const row of selectRows(src.rows, sec.matchColumn, sec.matchValues)) {
         if (count + batch.length >= IMPORT_CAP) break;
         const fields: Fields = {};
         const title = sec.titleField ? String(row[sec.titleField] ?? "").trim() : "";

@@ -54,17 +54,21 @@ async function structured<S extends z.ZodType>(
 }
 
 export type Snapshot = {
-  sections: { name: string; kind: string; fields: string[] }[];
+  sections: { name: string; kind: string; fields: string[]; views: { name: unknown; type: unknown }[] }[];
   records: { id: string; section: string; title: string; fields: Record<string, string> }[];
 };
 
 export async function understand(input: {
   text: string; snapshot: Snapshot; contextRecordId?: string | null; images?: ImageInput[];
+  viewing?: { section: string; view: unknown } | null;
 }): Promise<UnderstandingT | null> {
   const imgs = input.images ?? [];
   const notes: string[] = [];
   if (input.contextRecordId) {
     notes.push(`The team member is CURRENTLY viewing record id "${input.contextRecordId}". If this message changes a record, it most likely means that one.`);
+  }
+  if (input.viewing?.section) {
+    notes.push(`They are looking at the "${input.viewing.section}" section in this view: ${JSON.stringify(input.viewing.view)}. "Only show…", "filter…", "group by…", "sort…", "hide…" or "show … as …" most likely means changing THIS view — return addView with the same view name and the full updated view.`);
   }
   if (/^\s*@?\s*crud\b/i.test(input.text) || /^\s*hey\s+crud\b/i.test(input.text)) {
     notes.push("They tagged you (CRUD) directly — expect a command or a question, not a new record, unless they clearly state a business fact.");

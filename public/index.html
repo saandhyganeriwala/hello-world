@@ -9,26 +9,26 @@
 <meta property="og:description" content="Speak it, type it or snap it. Your business records organise themselves — and you just ask for the answers.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#FBFAF7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111210" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%23F2501F'/%3E%3Crect x='10' y='10' width='4' height='9' rx='2' fill='white'/%3E%3Crect x='18' y='10' width='4' height='9' rx='2' fill='white'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#F4F2EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-3 -1 70 66'%3E%3Crect x='-3' y='-1' width='70' height='66' rx='18' fill='%23FFC31F'/%3E%3Cg stroke='%23141414' stroke-width='3' stroke-linejoin='round' fill='%23A9AFC2'%3E%3Cpath d='M19 21C8 16 1 25 3 35c2 9 10 12 17 7z'/%3E%3Cpath d='M45 21c11-5 18 4 16 14-2 9-10 12-17 7z'/%3E%3Cellipse cx='32' cy='31' rx='17' ry='16'/%3E%3Cpath d='M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z'/%3E%3C/g%3E%3Cellipse cx='25.6' cy='29.6' rx='2.8' ry='3.4' fill='%23141414'/%3E%3Cellipse cx='38.4' cy='29.6' rx='2.8' ry='3.4' fill='%23141414'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
 /* ---------- CRUD.chat — landing ----------
    Concept: the spreadsheet dissolving into conversation.
-   Excel green appears only for "the old way". CRUD.chat is ink, vermilion and marigold
-   on warm paper — with CRUD himself, a little face that blinks and watches. */
+   Excel green appears only for "the old way". CRUD.chat is "Haldi & Ink" — turmeric
+   yellow on ink and warm paper — with CRUD, a baby elephant (an elephant never forgets). */
 :root{
-  --paper:#F4EFE6; --paper-2:#ECE4D5; --card:#FFFCF6;
-  --ink:#18140E; --ink-2:#4A4337; --muted:#887F70; --faint:#B3A995;
-  --line:#E2D8C5; --grid:rgba(24,20,14,.07); --grid-strong:rgba(24,20,14,.13);
-  --cobalt:#F2501F; --cobalt-deep:#C43A0F; --cobalt-soft:#FFE5D8; --cobalt-glow:rgba(242,80,31,.24);
-  --marigold:#FFB81C; --marigold-soft:#FFF0C4; --hard:#18140E; --grain-op:.055;
+  --paper:#F4F2EC; --paper-2:#EAE6DC; --card:#FFFEFA;
+  --ink:#141414; --ink-2:#46433D; --muted:#85817A; --faint:#B0AB9F;
+  --line:#E0DBCF; --grid:rgba(20,20,20,.07); --grid-strong:rgba(20,20,20,.13);
+  --cobalt:#FFC31F; --cobalt-deep:#7F5C00; --cobalt-soft:#FFF1C2; --cobalt-glow:rgba(255,195,31,.38); --on-brand:#141414; --peacock:#0E8A8A;
+  --marigold:#FFC31F; --marigold-soft:#FFF1C2; --hard:#141414; --grain-op:.045;
   --sheet:#1D6F42; --sheet-soft:#E4F1E8;
   --good:#1C8A57; --good-soft:#E3F4EA; --warn:#B4781A; --warn-soft:#F7EEDC;
-  --night:#17130E; --night-2:#221C15; --night-line:#352C20; --night-ink:#F6EFE3; --night-muted:#A0947F;
+  --night:#141414; --night-2:#1E1E1D; --night-line:#333330; --night-ink:#F3F1EA; --night-muted:#9A968D;
   --shadow:0 1px 2px rgba(21,20,15,.05),0 12px 32px -14px rgba(21,20,15,.18);
   --shadow-lg:0 30px 80px -30px rgba(21,20,15,.35),0 8px 24px -12px rgba(21,20,15,.12);
   --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
@@ -39,11 +39,11 @@
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --paper:#13110D; --paper-2:#1B1813; --card:#1E1A15;
+  --paper:#121212; --paper-2:#1A1A19; --card:#1C1C1B;
   --ink:#F6EFE3; --ink-2:#D0C7B6; --muted:#978D7B; --faint:#655C4F;
-  --line:#322C22; --grid:rgba(246,239,227,.05); --grid-strong:rgba(246,239,227,.1);
-  --cobalt:#FF6B3D; --cobalt-deep:#FF9C7B; --cobalt-soft:#3A1D12; --cobalt-glow:rgba(255,107,61,.26);
-  --marigold:#FFC64F; --marigold-soft:#33280F; --hard:#000; --grain-op:.06;
+  --line:#31312E; --grid:rgba(243,241,234,.05); --grid-strong:rgba(243,241,234,.1);
+  --cobalt:#FFC93D; --cobalt-deep:#FFD769; --cobalt-soft:#3A2F0C; --cobalt-glow:rgba(255,201,61,.3); --on-brand:#141414; --peacock:#3FC4C4;
+  --marigold:#FFC93D; --marigold-soft:#33290C; --hard:#000; --grain-op:.05;
   --sheet:#4FB57D; --sheet-soft:#16261C;
   --good:#52C88A; --good-soft:#15271D; --warn:#E0A94A; --warn-soft:#2A2213;
   --night:#0C0A07; --night-2:#1A160F; --night-line:#2E261B;
@@ -52,11 +52,11 @@
   color-scheme:dark;
 }}
 :root[data-theme="dark"]{
-  --paper:#13110D; --paper-2:#1B1813; --card:#1E1A15;
+  --paper:#121212; --paper-2:#1A1A19; --card:#1C1C1B;
   --ink:#F6EFE3; --ink-2:#D0C7B6; --muted:#978D7B; --faint:#655C4F;
-  --line:#322C22; --grid:rgba(246,239,227,.05); --grid-strong:rgba(246,239,227,.1);
-  --cobalt:#FF6B3D; --cobalt-deep:#FF9C7B; --cobalt-soft:#3A1D12; --cobalt-glow:rgba(255,107,61,.26);
-  --marigold:#FFC64F; --marigold-soft:#33280F; --hard:#000; --grain-op:.06;
+  --line:#31312E; --grid:rgba(243,241,234,.05); --grid-strong:rgba(243,241,234,.1);
+  --cobalt:#FFC93D; --cobalt-deep:#FFD769; --cobalt-soft:#3A2F0C; --cobalt-glow:rgba(255,201,61,.3); --on-brand:#141414; --peacock:#3FC4C4;
+  --marigold:#FFC93D; --marigold-soft:#33290C; --hard:#000; --grain-op:.05;
   --sheet:#4FB57D; --sheet-soft:#16261C;
   --good:#52C88A; --good-soft:#15271D; --warn:#E0A94A; --warn-soft:#2A2213;
   --night:#0C0A07; --night-2:#1A160F; --night-line:#2E261B;
@@ -84,7 +84,7 @@ a{color:inherit}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.02em}
 .brand-mark{width:32px;height:32px;border-radius:10px;background:var(--cobalt);display:grid;place-items:center;font-size:32px;border:1.5px solid var(--hard);box-shadow:0 2px 0 var(--hard)}
 
-.brand b{color:var(--cobalt);font-weight:700}
+.brand b{color:var(--cobalt-deep);font-weight:700}
 .nav-links{display:flex;gap:26px;margin-left:12px}
 .nav-links a{text-decoration:none;color:var(--ink-2);font-size:15px;font-weight:500}
 .nav-links a:hover{color:var(--ink)}
@@ -92,7 +92,7 @@ a{color:inherit}
 .link-quiet{text-decoration:none;color:var(--ink-2);font-size:15px;font-weight:600;padding:8px 10px}
 .btn{display:inline-flex;align-items:center;gap:9px;text-decoration:none;font-weight:700;font-size:15.5px;border-radius:999px;
   padding:13px 22px;transition:transform .15s ease,box-shadow .2s ease,background .2s;border:0;cursor:pointer;font-family:var(--body);white-space:nowrap}
-.btn-primary{background:var(--cobalt);color:#fff;border:1.5px solid var(--hard);box-shadow:0 4px 0 var(--hard)}
+.btn-primary{background:var(--cobalt);color:var(--on-brand);border:1.5px solid var(--hard);box-shadow:0 4px 0 var(--hard)}
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--hard)}
 .btn-primary:active,.btn-ghost:active{transform:translateY(4px);box-shadow:0 0 0 var(--hard)}
 .btn-primary svg{width:16px;height:16px;transition:transform .2s}
@@ -137,7 +137,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(46px,6vw,84px);lin
 .rot-dots{display:flex;gap:6px;margin-top:22px}
 .rot-dots i{width:18px;height:3px;border-radius:3px;background:var(--line);overflow:hidden;position:relative}
 .rot-dots i.on::after{content:"";position:absolute;inset:0;background:var(--cobalt);transform-origin:left;animation:dot var(--dur,3200ms) linear forwards}
-.rot-dots i.past{background:color-mix(in srgb,var(--cobalt) 35%,var(--line))}
+.rot-dots i.past{background:color-mix(in srgb,var(--ink) 30%,var(--line))}
 @keyframes dot{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .cell-ref{position:absolute;left:0;top:-1.85em;font-family:var(--mono);font-size:max(11px,.13em);font-weight:500;letter-spacing:.02em;color:var(--sheet);
   background:var(--paper);padding:2px 6px;border-radius:4px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sheet) 40%,transparent)}
@@ -153,7 +153,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(46px,6vw,84px);lin
   background:radial-gradient(circle,var(--cobalt-glow),transparent 62%);filter:blur(10px);pointer-events:none}
 .phone{position:relative;width:318px;height:648px;border-radius:50px;background:#0E0E0C;padding:11px;box-shadow:var(--shadow-lg),inset 0 0 0 1.5px rgba(255,255,255,.08)}
 .screen{position:relative;width:100%;height:100%;border-radius:40px;overflow:hidden;background:#FBFAF7;color:#1B1A16;display:flex;flex-direction:column;
-  font-family:var(--body);font-size:12.5px;--a:#F2501F}
+  font-family:var(--body);font-size:12.5px;--a:#FFC31F}
 .notch{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:92px;height:26px;border-radius:20px;background:#0E0E0C;z-index:5}
 .ph-top{display:flex;align-items:center;gap:8px;padding:46px 16px 10px;border-bottom:1px solid #ECE8DF}
 .ph-mark{width:22px;height:22px;border-radius:7px;background:var(--a);display:grid;place-items:center;font-size:22px}
@@ -177,7 +177,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(46px,6vw,84px);lin
 .ph-r2{color:#6E6A62;font-size:11.5px;margin-top:2px}
 .ph-r3{display:flex;gap:6px;margin-top:8px;align-items:center}
 .pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px}
-.p-new{background:#FFE5D8;color:#C43A0F}.p-ok{background:#E3F4EA;color:#1C8A57}.p-warn{background:#F7EEDC;color:#B4781A}
+.p-new{background:#FFF1C2;color:#7F5C00}.p-ok{background:#E3F4EA;color:#1C8A57}.p-warn{background:#F7EEDC;color:#B4781A}
 .ph-peek{border-top:1px solid #ECE8DF;padding:10px 14px;min-height:62px;display:flex;gap:8px;align-items:flex-start;background:#fff}
 .ph-ava{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:9.5px;font-weight:700}
 .ph-msg{min-width:0;flex:1;animation:fadeup .35s ease both}
@@ -203,7 +203,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(46px,6vw,84px);lin
 .ph-in .ph-ph{color:#8A857A}
 .ph-caret{display:inline-block;width:1.5px;height:14px;background:var(--a);animation:blink 1s steps(1) infinite;vertical-align:middle}
 @keyframes blink{50%{opacity:0}}
-.ph-send{flex:none;width:34px;height:34px;border-radius:50%;background:var(--a);display:grid;place-items:center;color:#fff;transition:transform .15s}
+.ph-send{flex:none;width:34px;height:34px;border-radius:50%;background:var(--a);display:grid;place-items:center;color:#141414;transition:transform .15s}
 .ph-send svg{width:15px;height:15px}
 .ph-send.press{transform:scale(.85)}
 .ph-mic{flex:none;color:#8A857A;display:grid;place-items:center}
@@ -222,7 +222,7 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(46px,6vw,84px);lin
 /* ---------- sections ---------- */
 section{position:relative}
 .sec{padding-top:clamp(72px,10vw,140px);padding-bottom:clamp(72px,10vw,140px)}
-.kicker{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--cobalt);font-weight:600}
+.kicker{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--peacock);font-weight:600}
 h2{font-family:var(--display);font-weight:700;font-size:clamp(36px,5vw,66px);line-height:1.02;letter-spacing:-.03em;margin:14px 0 0;text-wrap:balance;font-variation-settings:"opsz" 96}
 .sub{font-size:clamp(17px,1.5vw,19px);color:var(--ink-2);margin:18px 0 0;max-width:46ch;line-height:1.55}
 .head-c{text-align:center}.head-c .sub{margin-left:auto;margin-right:auto}
@@ -243,7 +243,7 @@ h2{font-family:var(--display);font-weight:700;font-size:clamp(36px,5vw,66px);lin
 .art-shot::before{content:"";position:absolute;inset:14px 12px;background:repeating-linear-gradient(var(--line) 0 5px,transparent 5px 13px)}
 .art-shot::after{content:"";position:absolute;left:0;right:0;height:26px;background:linear-gradient(transparent,var(--cobalt-glow),transparent);animation:scan 2.2s linear infinite}
 .art-shot + .art-tag{position:absolute;right:20px;bottom:18px}
-.art-tag{display:inline-flex;align-items:center;gap:6px;background:var(--cobalt);color:#fff;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;box-shadow:0 8px 18px -8px var(--cobalt-glow)}
+.art-tag{display:inline-flex;align-items:center;gap:6px;background:var(--cobalt);color:var(--on-brand);font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;box-shadow:0 8px 18px -8px var(--cobalt-glow)}
 .art-tag svg{width:12px;height:12px}
 
 /* ask (dark) */
@@ -259,9 +259,9 @@ h2{font-family:var(--display);font-weight:700;font-size:clamp(36px,5vw,66px);lin
 .formula.done .ftxt{text-decoration-color:#E5484D;color:#3F7F5B}
 .formula-label{font-family:var(--mono);font-size:11.5px;color:var(--night-muted);letter-spacing:.05em}
 .qa{background:var(--night-2);border-radius:24px;padding:22px;box-shadow:inset 0 0 0 1px var(--night-line)}
-.q{align-self:flex-end;margin-left:auto;background:#F2501F;color:#fff;border-radius:18px 18px 5px 18px;padding:12px 16px;max-width:85%;width:max-content;font-size:16px}
+.q{align-self:flex-end;margin-left:auto;background:#FFC31F;color:#141414;border-radius:18px 18px 5px 18px;padding:12px 16px;max-width:85%;width:max-content;font-size:16px}
 .a{margin-top:14px;display:flex;gap:11px}
-.a .ph-ava{width:34px;height:34px;font-size:34px;background:#F2501F;border-radius:11px;border:1.5px solid #000}
+.a .ph-ava{width:34px;height:34px;font-size:34px;background:#FFC31F;position:relative;border-radius:11px;border:1.5px solid #000}
 .a .ph-ava svg{width:15px;height:15px}
 .a-body{background:#2A2216;border:1px solid #4A3B22;border-radius:18px 18px 18px 5px;padding:14px 16px;flex:1;min-width:0}
 .a-body b{font-size:22px;font-family:var(--display);letter-spacing:-.02em;font-weight:700}
@@ -282,7 +282,7 @@ h2{font-family:var(--display);font-weight:700;font-size:clamp(36px,5vw,66px);lin
 .mt:hover{background:var(--paper-2)}
 .mt[aria-selected="true"]{background:var(--card);box-shadow:inset 0 0 0 1px var(--line),var(--shadow)}
 .mt .ic{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--paper-2);color:var(--ink-2);transition:background .25s,color .25s}
-.mt[aria-selected="true"] .ic{background:var(--cobalt);color:#fff}
+.mt[aria-selected="true"] .ic{background:var(--cobalt);color:var(--on-brand)}
 .mt .ic svg{width:20px;height:20px}
 .mt b{display:block;font-family:var(--display);font-size:21px;letter-spacing:-.025em;font-weight:700}
 .mt small{display:block;color:var(--muted);font-size:14px}
@@ -316,12 +316,12 @@ h2{font-family:var(--display);font-weight:700;font-size:clamp(36px,5vw,66px);lin
 .compare table{width:100%;border-collapse:collapse}
 .compare th,.compare td{padding:18px 22px;text-align:left;vertical-align:top;border-top:1px solid var(--line)}
 .compare thead th{border-top:0;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--muted);padding-top:20px;padding-bottom:16px}
-.compare thead th.us{color:var(--cobalt)}
+.compare thead th.us{color:var(--cobalt-deep)}
 .compare tbody th{font-weight:600;font-size:15px;width:22%;color:var(--ink)}
 .compare td.them{font-family:var(--mono);font-size:13.5px;color:var(--sheet);width:36%;text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--sheet) 45%,transparent);text-decoration-thickness:1px}
 .compare td.us{font-size:16px;font-weight:600;color:var(--ink)}
 .compare td.us::before{content:"";display:inline-block;width:18px;height:18px;margin-right:10px;vertical-align:-3px;border-radius:50%;
-  background:var(--cobalt) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/11px no-repeat}
+  background:var(--cobalt) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23141414' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/11px no-repeat}
 .compare-scroll{overflow-x:auto}
 
 /* team stream */
@@ -333,7 +333,7 @@ h2{font-family:var(--display);font-weight:700;font-size:clamp(36px,5vw,66px);lin
 .msg{display:flex;align-items:center;gap:11px;background:var(--card);border-radius:16px;padding:11px 16px 11px 11px;box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap;font-size:15px}
 .msg .pn-ava{width:32px;height:32px;font-size:12px}
 .msg small{color:var(--muted);font-weight:600;margin-right:2px}
-.msg .to{font-family:var(--mono);font-size:11.5px;color:var(--cobalt);background:var(--cobalt-soft);padding:3px 8px;border-radius:999px;margin-left:4px}
+.msg .to{font-family:var(--mono);font-size:11.5px;color:var(--cobalt-deep);background:var(--cobalt-soft);padding:3px 8px;border-radius:999px;margin-left:4px}
 .hub{display:flex;justify-content:center;margin-top:40px}
 .hub-pill{display:inline-flex;align-items:center;gap:12px;padding:12px 20px 12px 12px;border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line),var(--shadow);font-weight:600}
 .faces{display:flex}
@@ -343,7 +343,7 @@ h2{font-family:var(--display);font-weight:700;font-size:clamp(36px,5vw,66px);lin
 /* final */
 .final{text-align:center;padding:clamp(56px,8vw,110px) 0 clamp(70px,9vw,120px);position:relative;overflow:hidden}
 .final h2{font-size:clamp(44px,7vw,96px);max-width:12ch;margin-left:auto;margin-right:auto}
-.final h2 em{font-style:normal;color:var(--cobalt)}
+.final h2 em{font-style:normal;background:linear-gradient(transparent 14%,var(--cobalt) 14%,var(--cobalt) 90%,transparent 90%);padding:0 .08em;-webkit-box-decoration-break:clone;box-decoration-break:clone;color:#141414}
 .final .hero-cta{justify-content:center}
 .final .sheet-bg{position:absolute;inset:0;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:120px 40px;
   -webkit-mask-image:radial-gradient(ellipse 60% 70% at 50% 50%,#000,transparent 75%);mask-image:radial-gradient(ellipse 60% 70% at 50% 50%,#000,transparent 75%);pointer-events:none}
@@ -364,7 +364,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 .eyes{display:flex;align-items:center;justify-content:center;gap:.17em;pointer-events:none;transform:translate(var(--lx,0),var(--ly,0));transition:transform .3s cubic-bezier(.3,1.4,.5,1)}
 .eyes i{display:block;width:.14em;height:.27em;border-radius:99px;background:#fff;animation:blinkeye 5.4s infinite;animation-delay:var(--bd,0s)}
 @keyframes blinkeye{0%,93%,100%{transform:scaleY(1)}95%{transform:scaleY(.12)}}
-.ph-ava.crud{background:#F2501F!important;border-radius:7px;font-size:22px}
+.ph-ava.crud{background:#FFC31F!important;position:relative;border-radius:7px;font-size:22px}
 .halo{background:radial-gradient(circle,color-mix(in srgb,var(--marigold) 38%,transparent),transparent 62%)}
 .phone{z-index:2}
 .peeker{position:absolute;z-index:1;top:92px;left:calc(50% + 118px);width:120px;height:120px;pointer-events:none}
@@ -409,6 +409,37 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
   .peek-face .eyes{margin-left:0;--ly:.03em}
 }
 @keyframes peekup{to{transform:translateY(0) rotate(9deg)}}
+
+/* ---- CRUD the elephant ---- */
+.ele{position:absolute;left:5%;top:5%;width:90%;height:90%;overflow:visible}
+.ele .sk{fill:#A9AFC2;stroke:#141414;stroke-width:2.4;stroke-linejoin:round}
+.ele .pk{fill:#F3A9BA}
+.ele .ck{fill:#F3A9BA;opacity:.75}
+.ele .ln{fill:none;stroke:#141414;stroke-width:2.2;stroke-linecap:round}
+.ele .br{stroke-width:1.7}
+.ele .ey{fill:#141414}
+.ele .hl{fill:#fff}
+.ele-eyes{transform:translate(var(--lx,0px),var(--ly,0px));transition:transform .28s cubic-bezier(.3,1.4,.5,1)}
+.ele-eye{transform-box:fill-box;transform-origin:center;animation:eleblink 5.8s infinite;animation-delay:var(--bd,0s)}
+@keyframes eleblink{0%,93%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.ele-ear{transform-box:fill-box}
+.ele-ear.l{transform-origin:100% 40%} .ele-ear.r{transform-origin:0% 40%}
+.ele-trunk{transform-box:fill-box;transform-origin:30% 0%}
+.think .ele-ear.l,body.busy .mark .ele-ear.l{animation:flapl .5s ease-in-out infinite alternate}
+.think .ele-ear.r,body.busy .mark .ele-ear.r{animation:flapr .5s ease-in-out infinite alternate}
+.think .ele-trunk,body.busy .mark .ele-trunk{animation:trunk 1s ease-in-out infinite alternate}
+@keyframes flapl{from{transform:rotate(0)}to{transform:rotate(-14deg)}}
+@keyframes flapr{from{transform:rotate(0)}to{transform:rotate(14deg)}}
+@keyframes trunk{from{transform:rotate(-6deg)}to{transform:rotate(8deg)}}
+.happy .ele-trunk{animation:trunkup .6s cubic-bezier(.3,1.6,.5,1) 2 alternate}
+@keyframes trunkup{to{transform:rotate(-22deg)}}
+
+.brand-mark,.ph-mark,.ph-ava.crud,.big-face,.a .ph-ava{position:relative;font-size:0!important}
+.band-in .bf{position:relative}
+.a .ph-ava .ele,.ph-ava .ele{width:90%!important;height:90%!important}
+.band-in .bf{background:var(--card);border:2px solid #141414}
+.peek-face .ele{left:4%;top:6%;width:92%;height:92%}
+.peek-face{--ly:0px}
 /* ---------- responsive ---------- */
 @media (max-width:980px){
   .hero-in{grid-template-columns:minmax(0,1fr);gap:56px}
@@ -463,7 +494,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 <header class="nav" id="nav">
   <div class="wrap nav-in">
     <a class="brand" href="/" aria-label="CRUD.chat home">
-      <span class="brand-mark"><span class="eyes"><i></i><i></i></span></span>
+      <span class="brand-mark"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span>
       <span>CRUD<b>.chat</b></span>
     </a>
     <nav class="nav-links" aria-label="Sections">
@@ -502,12 +533,12 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 
     <div class="stage" aria-label="A demo of CRUD.chat turning messages into records">
       <div class="halo" aria-hidden="true"></div>
-      <div class="peeker" aria-hidden="true"><span class="peek-face" id="peekFace"><span class="eyes"><i></i><i></i></span></span></div>
+      <div class="peeker" aria-hidden="true"><span class="peek-face" id="peekFace"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span></div>
       <div class="phone">
         <div class="notch"></div>
         <div class="screen" id="demo" aria-hidden="true">
           <div class="ph-top">
-            <span class="ph-mark"><span class="eyes"><i></i><i></i></span></span>
+            <span class="ph-mark"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span>
             <span class="ph-ws">Thali House</span>
           </div>
           <div class="ph-tabs" id="dTabs"></div>
@@ -582,7 +613,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
         <div class="qa pre" id="qa">
           <div class="q">How much did Kashish order this month?</div>
           <div class="a">
-            <span class="ph-ava crud"><span class="eyes"><i></i><i></i></span></span>
+            <span class="ph-ava crud"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span>
             <div class="a-body">
               <b>₹67,500</b>
               <p>3 orders — 2 delivered, 1 packing. Up 40% on September.</p>
@@ -663,7 +694,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 <section class="final" aria-labelledby="fin-h">
   <div class="sheet-bg" aria-hidden="true"></div>
   <div class="wrap" style="position:relative">
-    <div class="final-face" aria-hidden="true"><span class="say">Let’s go!</span><span class="big-face" id="bigFace"><span class="eyes"><i></i><i></i></span></span></div>
+    <div class="final-face" aria-hidden="true"><span class="say">Namaste! Let’s go.</span><span class="big-face" id="bigFace"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span></div>
     <h2 id="fin-h">Close the spreadsheet. <em>Open the chat.</em></h2>
     <p class="sub" style="margin-left:auto;margin-right:auto">Start in 20 seconds. Bring your team when you're ready.</p>
     <div class="hero-cta" style="margin-top:36px">
@@ -675,7 +706,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 
 <footer>
   <div class="wrap foot">
-    <a class="brand" href="/"><span class="brand-mark"><span class="eyes"><i></i><i></i></span></span><span>CRUD<b>.chat</b></span></a>
+    <a class="brand" href="/"><span class="brand-mark"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span><span>CRUD<b>.chat</b></span></a>
     <span>© 2026 CRUD.chat</span>
     <nav aria-label="Footer"><a href="#ways">How it works</a><a href="#compare">vs Excel</a><a href="/app">Log in</a></nav>
   </div>
@@ -754,7 +785,7 @@ const I={
   pkg:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>',
   chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/></svg>',
   rupee:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12M6 9h12M13 20L6 13h3a4 4 0 0 0 0-8"/></svg>',
-  wand:'<span class="eyes"><i></i><i></i></span>',
+  wand:'<svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg>',
 };
 const PEOPLE={S:['Saandhy','#0B8C8C'],P:['Pranav','#1C8A57'],M:['Meena','#B4781A']};
 const SCENES=[
@@ -773,8 +804,8 @@ function drawTabs(){ D.tabs.innerHTML=st.tabs.length?st.tabs.map(t=>'<span class
 function cardHTML(c){ return '<div class="ph-card"><div class="ph-r1"><span>'+esc(c.t)+'</span>'+(c.amt?'<span>'+esc(c.amt)+'</span>':'')+'</div><div class="ph-r2">'+esc(c.l)+'</div><div class="ph-r3"><span class="pill '+c.s[1]+'">'+esc(c.s[0])+'</span>'+(c.x?'<span style="font-size:10.5px;color:#8A857A">'+esc(c.x)+'</span>':'')+'</div></div>'; }
 function drawBody(){ if(!st.active){ D.body.innerHTML='<div style="margin:auto;text-align:center;color:#8A857A;font-size:12px;line-height:1.5"><b style="display:block;font-size:14px;color:#1B1A16">Tell me what happened.</b>Type it, say it or snap it</div>'; return; }
   const cs=st.cards[st.active]||[]; D.body.innerHTML='<div class="ph-sec"><b>'+esc(st.active)+'</b><span>'+cs.length+' record'+(cs.length>1?'s':'')+'</span></div>'+cs.map(cardHTML).join(''); }
-function peek(who,inner){ const p=PEOPLE[who]||['CRUD','#F2501F']; D.peek.innerHTML='<span class="ph-ava" style="background:'+p[1]+'">'+(who==='bot'?I.wand:p[0][0])+'</span><div class="ph-msg"><div class="ph-who">'+(who==='bot'?'CRUD':p[0])+'</div>'+inner+'</div>';
-  D.peek.querySelectorAll('.ph-ava svg').forEach(s=>{s.style.width='12px';s.style.height='12px';}); }
+function peek(who,inner){ const p=PEOPLE[who]||['CRUD','#FFC31F']; D.peek.innerHTML='<span class="ph-ava" style="background:'+p[1]+'">'+(who==='bot'?I.wand:p[0][0])+'</span><div class="ph-msg"><div class="ph-who">'+(who==='bot'?'CRUD':p[0])+'</div>'+inner+'</div>';
+  D.peek.querySelectorAll('.ph-ava svg:not(.ele)').forEach(s=>{s.style.width='12px';s.style.height='12px';}); }
 const inPlaceholder=()=>{ D.inp.innerHTML='<span class="ph-ph">Record something…</span>'; };
 async function typeIn(text){ D.inp.innerHTML='<span class="t"></span><span class="ph-caret"></span>'; const t=D.inp.querySelector('.t');
   for(const ch of text){ t.textContent+=ch; await sleep(ch===' '?40:24); } }
@@ -784,7 +815,7 @@ async function runScene(s){
   if(s.kind==='text'||s.kind==='ask'){ await typeIn(s.text); await sleep(420); await press(); peek(s.who,'<div class="ph-txt">'+esc(s.text)+'</div><div class="ph-txt" style="color:#8A857A;font-size:11px">Reading'+dots+'</div>'); }
   if(s.kind==='voice'){ D.mic.classList.add('rec'); D.inp.innerHTML='<span class="ph-wave" style="color:#C53B3B">'+'<i></i>'.repeat(14)+'</span><span style="color:#C53B3B;font-size:11px;font-family:var(--mono)">0:04</span>';
     D.inp.querySelectorAll('.ph-wave i').forEach((el,i)=>el.style.animationDelay=(i*0.07)+'s'); await sleep(1800); D.mic.classList.remove('rec'); await press();
-    peek(s.who,'<div class="ph-txt"><span class="ph-wave" style="color:#F2501F">'+'<i></i>'.repeat(10)+'</span> <span style="font-family:var(--mono);font-size:10.5px;color:#8A857A">0:04</span></div><div class="ph-txt" style="color:#4C4940;font-style:italic">“'+esc(s.text)+'”</div>'); }
+    peek(s.who,'<div class="ph-txt"><span class="ph-wave" style="color:#0E8A8A">'+'<i></i>'.repeat(10)+'</span> <span style="font-family:var(--mono);font-size:10.5px;color:#8A857A">0:04</span></div><div class="ph-txt" style="color:#4C4940;font-style:italic">“'+esc(s.text)+'”</div>'); }
   if(s.kind==='shot'){ D.inp.innerHTML='<span class="ph-shot" style="width:20px;height:26px;margin:0"></span><span class="ph-ph">2 payments</span>'; await sleep(700); await press();
     peek(s.who,'<div class="ph-shot scan"></div><div class="ph-txt" style="color:#8A857A;font-size:11px">Reading screenshot'+dots+'</div>'); }
   await sleep(s.kind==='shot'?1500:1100);
@@ -819,12 +850,13 @@ let lookRaf=0, lastPt=null;
 addEventListener('pointermove',e=>{ lastPt=e; if(lookRaf) return; lookRaf=requestAnimationFrame(()=>{ lookRaf=0;
   lookers.forEach(el=>{ const r=el.getBoundingClientRect(); if(r.bottom<0||r.top>innerHeight) return;
     const dx=Math.max(-1,Math.min(1,(lastPt.clientX-(r.left+r.width/2))/260)), dy=Math.max(-1,Math.min(1,(lastPt.clientY-(r.top+r.height/2))/260));
-    const e2=el.querySelector('.eyes'); e2.style.setProperty('--lx',(dx*.09).toFixed(3)+'em'); e2.style.setProperty('--ly',(dy*.07).toFixed(3)+'em'); }); }); },{passive:true});
-document.querySelectorAll('.eyes').forEach(e=>e.style.setProperty('--bd',(Math.random()*5).toFixed(2)+'s'));
+    el.style.setProperty('--lx',(dx*2.6).toFixed(2)+'px'); el.style.setProperty('--ly',(dy*2).toFixed(2)+'px'); }); }); },{passive:true});
+document.querySelectorAll('.ele').forEach(e=>e.style.setProperty('--bd',(Math.random()*5).toFixed(2)+'s'));
 
 /* ---------- the band ---------- */
+const ELE=document.querySelector('.brand-mark').innerHTML;
 const BAND=['Orders','Payments','Leads','Tasks','Stock','Visits','Invoices','Customers','Suppliers','Expenses'];
-const bandHTML=BAND.map(w=>'<span>'+w+'</span><span class="bf"><span class="eyes"><i></i><i></i></span></span>').join('');
+const bandHTML=BAND.map(w=>'<span>'+w+'</span><span class="bf"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span>').join('');
 $('#band').innerHTML=bandHTML+bandHTML;
 
 /* ---------- stamps ---------- */

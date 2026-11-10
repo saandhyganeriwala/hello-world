@@ -14,6 +14,7 @@ import { createWorkspace, getMembership, listWorkspaces, loadState, newInviteCod
 import { processMessage, type ImageInput } from "../domain/messages.js";
 import { applyImport, fallbackPlan, type Sheet } from "../domain/import.js";
 import { cleanKey, esc } from "../domain/helpers.js";
+import { removeView, sanitizeView, upsertView } from "../domain/views.js";
 import { publish, subscribe } from "../realtime.js";
 
 export const api = new Hono<AppEnv>();
@@ -235,9 +236,29 @@ api.post("/workspaces/:id/messages", bigBody, async (c) => {
 
   const out = await processMessage(
     { workspaceId: id, userId: user.id, authorName: user.name || "Someone" },
-    { text, images, thumbs, contextRecordId: str(b.contextRecordId, 64) || null, clientId: c.get("clientId") },
+    {
+      text, images, thumbs, contextRecordId: str(b.contextRecordId, 64) || null, clientId: c.get("clientId"),
+      viewing: b.viewing && typeof b.viewing.section === "string"
+        ? { section: str(b.viewing.section, 80), view: sanitizeView(b.viewing.view) } : null,
+    },
   );
   return c.json({ ...out, state: await stateOf(c, id) });
+});
+
+// ----- views (from the Customize menu) -----
+
+api.post("/workspaces/:id/views", async (c) => {
+  if (!(await access(c))) return notFound(c);
+  const b = await body(c), id = c.req.param("id"), db = getDb();
+  const [s] = await db.select().from(sections)
+    .where(and(eq(sections.workspaceId, id), sql`lower(${sections.name}) = lower(${str(b.section, 80)})`)).limit(1);
+  if (!s) return c.json({ error: "Section not found." }, 404);
+  let views;
+  if (b.remove) views = removeView(s.views, str(b.remove, 40));
+  else { const v = sanitizeView(b.view); if (!v) return c.json({ error: "Nothing to save." }, 400); views = upsertView(s.views, v); }
+  await db.update(sections).set({ views }).where(eq(sections.id, s.id));
+  changed(c, id);
+  return c.json({ state: await stateOf(c, id) });
 });
 
 // ----- spreadsheet import -----

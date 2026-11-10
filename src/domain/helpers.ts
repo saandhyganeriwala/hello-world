@@ -1,10 +1,11 @@
 // Pure helpers shared by the AI pipeline, record logic and import.
 import type { Fields } from "../db/schema.js";
 
-export const KINDS = ["orders", "payments", "tasks", "crm", "inquiries", "meetings", "inventory", "generic"] as const;
+export const KINDS = ["orders", "payments", "tasks", "crm", "inquiries", "meetings", "inventory", "people", "tracker", "generic"] as const;
 export type Kind = (typeof KINDS)[number];
 
-export const ICONS = ["package", "box", "rupee", "chat", "phone", "person", "people", "task", "truck", "calendar", "note", "clock", "star", "tag"] as const;
+export const ICONS = ["package", "box", "rupee", "chat", "phone", "person", "people", "task", "truck", "calendar", "note", "clock", "star", "tag",
+  "drop", "heart", "activity", "moon", "book", "chart", "home", "briefcase", "car", "leaf", "cup", "bolt"] as const;
 
 export const MEMBER_COLORS = ['#0B8C8C','#9A47C6','#E8870B','#12845A','#D23A2E','#97672B','#3A57D6','#C2417A'];
 
@@ -15,6 +16,8 @@ const KIND_MAP: Record<string, Kind> = {
   contacts: "crm", supplier: "crm", vendor: "crm", lead: "inquiries", leads: "inquiries", inquiry: "inquiries",
   enquiry: "inquiries", meeting: "meetings", appointment: "meetings", appointments: "meetings", visit: "meetings",
   stock: "inventory", product: "inventory", products: "inventory", item: "inventory", items: "inventory",
+  employee: "people", employees: "people", staff: "people", team: "people", hr: "people",
+  habit: "tracker", habits: "tracker", log: "tracker", tracker: "tracker", intake: "tracker", health: "tracker",
 };
 
 export function normKind(k: unknown): Kind | "" {
@@ -32,6 +35,8 @@ export function inferKind(name: string): Kind {
   if (/customer|client|contact|crm|supplier|vendor/.test(n)) return "crm";
   if (/meeting|appointment|visit|event/.test(n)) return "meetings";
   if (/inventor|stock|product|item/.test(n)) return "inventory";
+  if (/employee|staff|attendance|leave|payroll|team/.test(n)) return "people";
+  if (/intake|habit|weight|steps|sleep|workout|tracker|water|calorie/.test(n)) return "tracker";
   return "generic";
 }
 
@@ -45,6 +50,10 @@ const ICON_WORDS: Record<string, string> = {
   delivery: "truck", deliveries: "truck", dispatch: "truck", shipping: "truck", shipment: "truck",
   meeting: "calendar", meetings: "calendar", appointment: "calendar", booking: "calendar", bookings: "calendar",
   note: "note", notes: "note", review: "star", reviews: "star", feedback: "star",
+  water: "drop", intake: "drop", hydration: "drop", health: "heart", weight: "activity", steps: "activity",
+  workout: "activity", exercise: "activity", sleep: "moon", reading: "book", books: "book", report: "chart",
+  employee: "briefcase", employees: "briefcase", staff: "briefcase", attendance: "clock", leave: "calendar",
+  leaves: "calendar", vehicle: "car", fuel: "car", plants: "leaf", tea: "cup", coffee: "cup", electricity: "bolt",
 };
 
 export function sectionIcon(name: string, hint?: unknown): string {

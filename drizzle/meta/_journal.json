@@ -15,6 +15,13 @@
       "when": 1794313055030,
       "tag": "0001_invite_links",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794319453876,
+      "tag": "0002_section_views",
+      "breakpoints": true
     }
   ]
 }

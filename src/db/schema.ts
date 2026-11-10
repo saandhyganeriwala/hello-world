@@ -74,6 +74,8 @@ export const sections = pgTable("sections", {
   icon: text("icon").notNull().default("tag"),
   kind: text("kind").notNull().default("generic"),
   sort: json("sort").$type<SectionSort>(),
+  // Saved views (board, chart, tracker…) set by CRUD or the Customize menu. Defaults per kind live in the client.
+  views: json("views").$type<Record<string, unknown>[]>(),
   position: integer("position").notNull().default(0),
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("sections_ws_name_uq").on(t.workspaceId, sql`lower(${t.name})`)]);

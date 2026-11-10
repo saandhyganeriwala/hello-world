@@ -85,7 +85,7 @@ export async function loadState(workspaceId: string, userId: string) {
       pending: !m.userId,
       contact: m.userId === userId ? (m.email || m.phone || "") : maskContact(m.email || m.phone),
     })),
-    sections: Object.fromEntries(secs.map((s) => [s.name, { name: s.name, icon: s.icon, kind: s.kind, sort: s.sort }])),
+    sections: Object.fromEntries(secs.map((s) => [s.name, { name: s.name, icon: s.icon, kind: s.kind, sort: s.sort, views: s.views ?? [] }])),
     order: secs.map((s) => s.name),
     records: recs.map((r) => ({
       id: r.id,

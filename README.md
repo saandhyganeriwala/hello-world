@@ -11,11 +11,25 @@ interface (order panel, ledger, CRM, task list…) on the fly.
 3. Claude (Sonnet 5.5) reads it with a snapshot of the workspace and decides what it is:
    - **record** → create / update / delete records (and new sections when needed)
    - **question** → CRUD answers in the chat; nothing is recorded
-   - **command** → CRUD changes the interface (rename/merge/sort sections, fields, accent colour…)
+   - **command** → CRUD changes the interface: sections, fields, the accent colour, and *views* (below)
    - **chatter** → nothing is recorded
 4. The change is applied in one database transaction and every teammate's screen refreshes.
 
-Claude's reply is constrained by a JSON schema (structured outputs), so it is always valid. The stable
+## Views
+
+Every section can be shown many ways: list, table, board (kanban / pipeline, drag cards between columns),
+funnel, calendar, agenda, chart (bar, line, area, pie, donut), overview (KPI tiles), tracker (progress to a
+goal per day/week/month, streaks), ledger (money in/out, running balance) and top list. All of them take
+filters, sorting, grouping, visible fields and highlight rules, and export to CSV.
+
+Each kind of section gets sensible default views from its data. Saved views live on the section
+(`sections.views`) and are shared by the team; CRUD adds them ("show my leads as a kanban", "pie chart of
+sales by product", "only pending ones"), and so does the Customize button. A new kind of record (say,
+water intake) can arrive with its own screen, such as a tracker with a daily goal.
+
+Claude's reply is constrained by a JSON schema (structured outputs), so it is always valid. The schema has
+no nullable or optional fields (the API allows at most 16 union-typed and 24 optional parameters per
+request): "not set" is `""`, `[]` or `0`; `npx tsx scripts/check-schemas.ts` counts them. The stable
 instructions are prompt-cached. If no API key is set, or Claude is unreachable, an on-device parser still
 records common orders, payments and leads.
 
@@ -122,6 +136,7 @@ src/server.ts            HTTP server: static files + /api
 src/routes/api.ts        every API route (auth, workspaces, team, messages, import, records, live events)
 src/domain/messages.ts   the message flow above
 src/domain/apply.ts      record operations + interface commands (transactional)
+src/domain/views.ts      saved views: sanitising, adding, removing
 src/domain/import.ts     spreadsheet import
 src/ai/                  Claude client, prompts, structured-output schemas
 src/auth/                OTP, email (Resend), WhatsApp (Interakt), sessions

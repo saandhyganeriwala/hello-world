@@ -15,6 +15,7 @@ export type SendInput = {
   thumbs: string[];
   contextRecordId: string | null;
   clientId: string;
+  viewing?: { section: string; view: unknown } | null;
 };
 
 export type SendResult = {
@@ -24,6 +25,7 @@ export type SendResult = {
   touched: string[];
   isNew: boolean;
   focus: string | null;
+  view: string | null;
 };
 
 const addressed = (t: string) => /^\s*@?\s*crud\b/i.test(t) || /^\s*hey\s+crud\b/i.test(t);
@@ -48,7 +50,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
   }).returning();
   publish(ws, { type: "change", by: input.clientId });
 
-  const result: SendResult = { kind: "chatter", section: null, rid: null, touched: [], isNew: false, focus: null };
+  const result: SendResult = { kind: "chatter", section: null, rid: null, touched: [], isNew: false, focus: null, view: null };
   let effects: Effect[] = [];
   let tag: { tag: string; tagIcon: string; recordId: string | null } | null = null;
 
@@ -66,6 +68,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
     try {
       ai = await understand({
         text: input.text, snapshot: await buildSnapshot(ws), contextRecordId: input.contextRecordId, images: input.images,
+        viewing: input.viewing ?? null,
       });
       if (!ai) aiFailed = true; // refusal or unparseable
     } catch (e) {
@@ -84,6 +87,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
       const out = await db.transaction((tx) => applyCommands(tx, ctx, ai!.commands));
       effects = out.effects;
       result.focus = out.goto || ai.focus || null;
+      result.view = out.gotoView;
       await botReply(ws, ai.answer.trim() || (out.summary.length ? `Done — ${out.summary.join("; ")}.` : "I couldn't make that change — tell me the section and what to change."));
     } else if (ai?.kind === "chatter") {
       result.kind = "chatter";

@@ -5,6 +5,7 @@ import { records, sections, workspaces, type Fields, type HistoryEntry } from ".
 import type { CommandT } from "../ai/schemas.js";
 import type { Snapshot } from "../ai/claude.js";
 import { cleanKey, esc, inferKind, normKind, recTitle, resolveColor, sectionIcon } from "./helpers.js";
+import { removeView, sanitizeView, upsertView } from "./views.js";
 
 export type Ctx = { workspaceId: string; userId: string; authorName: string; contextRecordId?: string | null; messageText?: string };
 
@@ -13,6 +14,7 @@ export type LooseOp = {
   op?: string; action?: string; section?: string; sectionIcon?: string; sectionKind?: string;
   recordId?: string | null; status?: string;
   fields?: { key: string; value: string }[] | Record<string, unknown>;
+  sectionView?: unknown[];
 };
 
 const SNAPSHOT_RECORDS = 150;
@@ -30,7 +32,7 @@ function toFields(f: LooseOp["fields"]): Fields {
 
 const history = (author: string, type: HistoryEntry["type"], html: string): HistoryEntry => ({ ts: Date.now(), author, type, html });
 
-export async function ensureSection(tx: Tx, workspaceId: string, rawName: string, icon?: unknown, kind?: unknown) {
+export async function ensureSection(tx: Tx, workspaceId: string, rawName: string, icon?: unknown, kind?: unknown, view?: unknown) {
   const name = (rawName || "").trim() || "Notes";
   const find = async () => (await tx.select().from(sections)
     .where(and(eq(sections.workspaceId, workspaceId), sql`lower(${sections.name}) = lower(${name})`)).limit(1))[0];
@@ -38,8 +40,10 @@ export async function ensureSection(tx: Tx, workspaceId: string, rawName: string
   if (existing) return { id: existing.id, name: existing.name, isNew: false };
   const [{ pos }] = await tx.select({ pos: sql<number>`coalesce(max(${sections.position}), -1)::int` })
     .from(sections).where(eq(sections.workspaceId, workspaceId));
+  const v = sanitizeView(view);
   const [ins] = await tx.insert(sections).values({
     workspaceId, name, icon: sectionIcon(name, icon), kind: normKind(kind) || inferKind(name), position: pos + 1,
+    views: v ? [v] : null,
   }).onConflictDoNothing().returning();
   if (ins) return { id: ins.id, name: ins.name, isNew: true };
   const raced = await find(); // someone created it at the same moment
@@ -110,7 +114,8 @@ export async function applyOps(tx: Tx, ctx: Ctx, ops: LooseOp[]) {
       kind = "create"; // nothing matched — record it as new
     }
 
-    const sec = await ensureSection(tx, ctx.workspaceId, op.section || "Notes", op.sectionIcon, op.sectionKind);
+    const sec = await ensureSection(tx, ctx.workspaceId, op.section || "Notes", op.sectionIcon, op.sectionKind,
+      Array.isArray(op.sectionView) ? op.sectionView[0] : undefined);
     secName.set(sec.id, sec.name);
     isNew = isNew || sec.isNew;
     const fields = Object.keys(opFields).length ? opFields : { Note: ctx.messageText || "" };
@@ -140,6 +145,7 @@ export async function applyCommands(tx: Tx, ctx: Ctx, cmds: CommandT[] | any[]) 
   const summary: string[] = [];
   const effects: Effect[] = [];
   let goto: string | null = null;
+  let gotoView: string | null = null;
 
   const sectionRecords = (sectionId: string) =>
     tx.select({ id: records.id, fields: records.fields }).from(records).where(eq(records.sectionId, sectionId));
@@ -228,6 +234,16 @@ export async function applyCommands(tx: Tx, ctx: Ctx, cmds: CommandT[] | any[]) 
         if (/reset|default|none/.test(raw)) await tx.update(workspaces).set({ accent: null }).where(eq(workspaces.id, ws));
         else { const ac = resolveColor(c.accent); if (ac) await tx.update(workspaces).set({ accent: ac }).where(eq(workspaces.id, ws)); }
         summary.push("updated the look");
+      } else if (type === "addview") {
+        const s = await findSection(tx, ws, c.section || c.name);
+        const v = sanitizeView(Array.isArray(c.view) ? c.view[0] : c.view);
+        if (s && v) {
+          await tx.update(sections).set({ views: upsertView(s.views, v) }).where(eq(sections.id, s.id));
+          goto = s.name; gotoView = v.name; summary.push(`showing “${s.name}” as ${v.name}`);
+        }
+      } else if (type === "removeview") {
+        const s = await findSection(tx, ws, c.section), n = String(c.name || c.from || "");
+        if (s && n) { await tx.update(sections).set({ views: removeView(s.views, n) }).where(eq(sections.id, s.id)); goto = s.name; summary.push(`removed the “${n}” view`); }
       } else if (type === "renameworkspace") {
         const to = String(c.to || c.name || "").trim();
         if (to) { await tx.update(workspaces).set({ name: to }).where(eq(workspaces.id, ws)); summary.push(`renamed the workspace to “${to}”`); }
@@ -236,7 +252,7 @@ export async function applyCommands(tx: Tx, ctx: Ctx, cmds: CommandT[] | any[]) 
       console.error("[commands] failed", type, e);
     }
   }
-  return { summary, goto, effects };
+  return { summary, goto, gotoView, effects };
 }
 
 async function findSectionExact(tx: Tx, workspaceId: string, name: string) {
@@ -259,7 +275,10 @@ export async function buildSnapshot(workspaceId: string): Promise<Snapshot> {
     vocab.set(n, set);
   }
   return {
-    sections: secs.map((s) => ({ name: s.name, kind: s.kind, fields: [...(vocab.get(s.name) ?? [])] })),
+    sections: secs.map((s) => ({
+      name: s.name, kind: s.kind, fields: [...(vocab.get(s.name) ?? [])],
+      views: (Array.isArray(s.views) ? s.views : []).map((v: any) => ({ name: v?.name, type: v?.type })),
+    })),
     records: recs.map((r) => {
       const section = secName.get(r.sectionId) ?? "";
       return {

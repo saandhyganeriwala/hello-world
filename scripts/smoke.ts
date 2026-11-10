@@ -10,7 +10,7 @@ const { initDb, getDb } = await import("../src/db/client.js");
 const { applyOps, applyCommands, buildSnapshot } = await import("../src/domain/apply.js");
 const { createWorkspace, loadState } = await import("../src/domain/state.js");
 const { users } = await import("../src/db/schema.js");
-const { Understanding } = await import("../src/ai/schemas.js");
+const { Command, Understanding } = await import("../src/ai/schemas.js");
 
 await initDb();
 const db = getDb();
@@ -30,9 +30,9 @@ const F = (o: Record<string, string>) => Object.entries(o).map(([key, value]) =>
 const reply = Understanding.parse({
   kind: "record", answer: "", focus: "", commands: [],
   operations: [
-    { op: "create", section: "Orders", sectionIcon: "package", sectionKind: "orders", recordId: null,
+    { op: "create", section: "Orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: [],
       fields: F({ Title: "A", Customer: "A", Product: "Pooja thalis", Quantity: "5", Rate: "₹400 each", Amount: "₹2,000", Payment: "Paid", Status: "New" }) },
-    { op: "create", section: "orders", sectionIcon: "package", sectionKind: "orders", recordId: null,
+    { op: "create", section: "orders", sectionIcon: "package", sectionKind: "orders", recordId: "", sectionView: [],
       fields: F({ Title: "Kashish", Customer: "Kashish", Amount: "₹22,500", Status: "New" }) },
   ],
 });
@@ -50,8 +50,11 @@ check("update by recordId", s.records.find((r) => r.id === kash.id)!.fields.Stat
 const snap = await buildSnapshot(wsId);
 check("snapshot lists sections with field names", snap.sections[0].fields.includes("Amount") && snap.records.length === 2, snap.sections);
 
-const C = (c: Record<string, unknown>) => ({ section: null, from: null, to: null, into: null, name: null, kind: null, icon: null,
-  field: null, value: null, by: null, dir: null, mode: null, accent: null, order: null, ...c });
+// Commands exactly as Claude returns them: every property present, unused ones empty.
+const C = (c: Record<string, unknown>) => Command.parse({ section: "", from: "", to: "", into: "", name: "", kind: "", icon: "",
+  field: "", value: "", by: "", dir: "", mode: "", accent: "", order: [], view: [], ...c });
+const V = (v: Record<string, unknown>) => ({ name: "", type: "list", groupBy: "", groups: [], dateField: "", measure: "", agg: "count",
+  chart: "", bucket: "", fields: [], filters: [], sortBy: "", sortDir: "", goal: 0, unit: "", period: "", metrics: [], highlight: [], limit: 0, ...v });
 const out = await db.transaction((tx) => applyCommands(tx, ctx, [
   C({ type: "renameSection", from: "Orders", to: "Sales" }),
   C({ type: "addField", section: "Sales", field: "GST", value: "18%" }),
@@ -86,6 +89,26 @@ check("clearSection keeps the tab, removes records", s.order.includes("Sales") &
 await db.transaction((tx) => applyCommands(tx, ctx, [C({ type: "deleteSection", section: "Sales" })]));
 s = await state();
 check("deleteSection", !s.order.includes("Sales"), s.order);
+
+// Views: add a board, replace it with a filtered one, add a chart, remove it.
+await db.transaction((tx) => applyCommands(tx, ctx, [
+  C({ type: "addView", section: "Leads", view: [V({ name: "Pipeline", type: "board", groupBy: "Status", groups: ["New", "Won"], measure: "Amount", agg: "sum" })] }),
+  C({ type: "addView", section: "Leads", view: [V({ name: "pipeline", type: "board", groupBy: "Status", filters: [{ field: "Status", op: "neq", value: "Lost" }] })] }),
+  C({ type: "addView", section: "Leads", view: [V({ name: "By source", type: "chart", chart: "pie", groupBy: "Source" })] }),
+]));
+s = await state();
+let lv = s.sections.Leads.views as any[];
+check("addView adds, and replaces by name", lv.length === 2 && lv[0].filters[0]?.op === "neq" && lv[1].chart === "pie", lv);
+await db.transaction((tx) => applyCommands(tx, ctx, [C({ type: "removeView", section: "Leads", name: "By source" })]));
+s = await state();
+check("removeView", (s.sections.Leads.views as any[]).length === 1);
+// A new section can arrive with its own screen (a water tracker).
+await db.transaction((tx) => applyOps(tx, ctx, [{ op: "create", section: "Water Intake", sectionIcon: "drop", sectionKind: "tracker", recordId: "",
+  fields: F({ Title: "Water", Amount: "500", Unit: "ml" }), sectionView: [V({ name: "Today", type: "tracker", measure: "Amount", unit: "ml", goal: 3000, period: "day", agg: "sum" })] }]));
+s = await state();
+lv = s.sections["Water Intake"].views as any[];
+check("new tracker section gets its view", s.sections["Water Intake"].kind === "tracker" && s.sections["Water Intake"].icon === "drop" && lv[0]?.goal === 3000, s.sections["Water Intake"]);
+check("snapshot lists saved views", (await buildSnapshot(wsId)).sections.some((x) => x.views.some((v) => v.name === "Today")));
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);
