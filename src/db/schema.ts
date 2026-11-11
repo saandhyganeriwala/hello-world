@@ -15,6 +15,8 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   phone: text("phone").unique(),
   name: text("name"),
+  // Free AI credit is per person (spent across all the free workspaces they own), not per workspace.
+  freeSpentInr: doublePrecision("free_spent_inr").notNull().default(0),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
@@ -47,6 +49,8 @@ export const workspaces = pgTable("workspaces", {
   plan: text("plan").notNull().default("free"),
   planUntil: ts("plan_until"),
   periodStart: ts("period_start"),
+  // Unused free credit carried into the first Pro period when upgrading early.
+  bonusInr: doublePrecision("bonus_inr").notNull().default(0),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: ts("created_at").notNull().defaultNow(),
 });

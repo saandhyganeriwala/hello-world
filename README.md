@@ -120,6 +120,14 @@ The email is built in `src/auth/email.ts`.
 
 The request is built in `src/auth/interakt.ts`.
 
+## Voice notes
+
+The app records audio and a speech-to-text model on the server writes it out (`src/ai/transcribe.ts`):
+OpenAI `gpt-4o-mini-transcribe` (set `OPENAI_API_KEY`), primed with the workspace's names and products,
+or Sarvam Saaras v3 for Hinglish and Indian languages (set `SARVAM_API_KEY`). Audio is sent in ≤25-second
+segments; the text lands in the composer to check before sending, and its cost comes out of the AI credit.
+Without a key, the browser's built-in speech recognition is used.
+
 ## Plans, usage and payments
 
 Every Claude call is priced from its token counts (input, output, cache reads and writes, at the
@@ -127,8 +135,12 @@ model's per-million prices in `src/domain/billing.ts`) and stored in `ai_usage` 
 
 | Plan | Price | AI | People |
 |---|---|---|---|
-| Free | ₹0 | ₹50 of AI, once (`FREE_CREDIT_INR`) | 3 (`FREE_MEMBERS`) |
-| Pro | ₹999 per 30 days (`PRO_PRICE_INR`) | fair use: ₹600 of AI per 30 days (`PRO_MONTHLY_AI_INR`), shown as ≈ 650 actions | 10 (`PRO_MEMBERS`) |
+| Free | ₹0 | ₹20 of AI per person, once (`FREE_CREDIT_INR`), ≈ 40 actions | 3 (`FREE_MEMBERS`) |
+| Pro | ₹999 per 30 days (`PRO_PRICE_INR`) | fair use: ₹450 of AI per 30 days (`PRO_MONTHLY_AI_INR`), shown as ≈ 1,000 actions | 10 (`PRO_MEMBERS`) |
+
+A typical action costs about ₹0.35–0.45 (measured in production: ~700 new tokens in, ~250 out, the
+6,300-token instructions read from Claude's one-hour prompt cache). Free credit belongs to the person,
+across all the free workspaces they own; upgrading early carries what's left into the first Pro month.
 
 When a workspace runs out, CRUD still saves plain records with the on-device parser; questions,
 screenshots, imports and interface changes ask for an upgrade. Viewing, editing and searching never cost.

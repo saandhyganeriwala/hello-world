@@ -61,12 +61,22 @@ export const env = {
   // ---- Plans & usage ----
   // Every Claude call is priced from its token counts (USD) and converted to rupees.
   usdInr: num(process.env.USD_INR, 88),
-  freeCreditInr: num(process.env.FREE_CREDIT_INR, 50),        // free AI credit per workspace
+  actionInr: num(process.env.ACTION_INR, 0.45),               // typical cost of one AI action, for "≈ N actions" (from real usage)
+  freeCreditInr: num(process.env.FREE_CREDIT_INR, 20),        // free AI credit per person (≈ 40 actions)
   freeMembers: num(process.env.FREE_MEMBERS, 3),
   proPriceInr: num(process.env.PRO_PRICE_INR, 999),           // per 30 days
   proDays: num(process.env.PRO_DAYS, 30),
   proMembers: num(process.env.PRO_MEMBERS, 10),
-  proMonthlyAiInr: num(process.env.PRO_MONTHLY_AI_INR, 600),  // fair-usage AI budget per 30 days
+  proMonthlyAiInr: num(process.env.PRO_MONTHLY_AI_INR, 450),  // fair-usage AI budget per 30 days (≈ 1,000 actions)
+  // ---- Voice transcription (see src/ai/transcribe.ts) ----
+  transcribeProvider: (process.env.TRANSCRIBE_PROVIDER || "").toLowerCase(), // "openai" | "sarvam" | "" (auto)
+  openaiKey: process.env.OPENAI_API_KEY || "",
+  openaiBaseUrl: (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
+  openaiTranscribeModel: process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe",
+  sarvamKey: process.env.SARVAM_API_KEY || "",
+  sarvamBaseUrl: (process.env.SARVAM_BASE_URL || "https://api.sarvam.ai").replace(/\/$/, ""),
+  sarvamMode: process.env.SARVAM_MODE || "codemix",
+  sarvamInrPerHour: num(process.env.SARVAM_INR_PER_HOUR, 30),
   // ---- Razorpay (payments) ----
   razorpayKeyId: process.env.RAZORPAY_KEY_ID || "",
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || "",

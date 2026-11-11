@@ -718,7 +718,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
         <h3>Free</h3>
         <div class="price">₹0</div>
         <ul>
-          <li><b data-p="freeCreditInr">₹50</b> of AI to start — about <span data-p="freeActions">50</span> actions</li>
+          <li><b data-p="freeCreditInr">₹20</b> of AI to start — about <span data-p="freeActions">40</span> actions</li>
           <li>Up to <span data-p="freeMembers">3</span> people</li>
           <li>Unlimited records, views and search</li>
         </ul>
@@ -730,7 +730,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
         <div class="price"><span data-p="proPriceInr">₹999</span><small>/ month</small></div>
         <ul>
           <li>Up to <span data-p="proMembers">10</span> people</li>
-          <li>About <b data-p="proActions">650</b> AI actions a month (fair use)</li>
+          <li>About <b data-p="proActions">1,000</b> AI actions a month (fair use)</li>
           <li>Questions, screenshots, imports and custom views</li>
         </ul>
         <a class="btn btn-primary" href="/app">Go Pro</a>
@@ -905,7 +905,7 @@ document.querySelectorAll('.ele').forEach(e=>e.style.setProperty('--bd',(Math.ra
 /* ---------- pricing numbers from the server ---------- */
 fetch('/api/config').then(r=>r.json()).then(c=>{ const p=c&&c.plans; if(!p) return;
   const set=(k,v)=>document.querySelectorAll('[data-p="'+k+'"]').forEach(el=>el.textContent=v);
-  set('freeCreditInr','₹'+p.freeCreditInr); set('freeActions',Math.floor(p.freeCreditInr/0.9/5)*5); set('freeMembers',p.freeMembers);
+  set('freeCreditInr','₹'+p.freeCreditInr); set('freeActions',p.freeActions||Math.floor(p.freeCreditInr/0.45/5)*5); set('freeMembers',p.freeMembers);
   set('proPriceInr','₹'+p.proPriceInr.toLocaleString('en-IN')); set('proMembers',p.proMembers); set('proActions',p.proActions.toLocaleString('en-IN')); }).catch(()=>{});
 
 /* ---------- the band ---------- */

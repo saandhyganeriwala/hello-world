@@ -998,6 +998,17 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
 .pc-list{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:8px;font-size:14px}
 .pc-list li{display:flex;gap:9px;align-items:flex-start}
 .pc-list svg{width:16px;height:16px;flex:none;color:var(--good);margin-top:2px}
+
+/* ---- plan chip ---- */
+.plan-chip{flex:none;display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--border);background:var(--surface);color:var(--fg-2);
+  border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;white-space:nowrap;margin-right:2px}
+.plan-chip b{color:var(--fg);font-weight:750;font-variant-numeric:tabular-nums}
+.plan-chip span{color:var(--muted)}
+.plan-chip.low{border-color:var(--warn);background:var(--warn-weak)}
+.plan-chip.out{border-color:var(--hard);background:var(--accent);box-shadow:0 2px 0 var(--hard)} .plan-chip.out b{color:#141414}
+.plan-chip.pro{background:var(--accent);border-color:var(--hard);padding:3px 9px} .plan-chip.pro b{color:#141414;font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.plan-chip[hidden]{display:none}
+@media (max-width:430px){ .plan-chip span{display:none} }
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.01ms!important;animation-iteration-count:1!important}}
 </style>
 </head>
@@ -1011,6 +1022,7 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
       <span class="chev" id="chev"></span>
     </button>
     <span class="spacer"></span>
+    <button class="plan-chip" id="planChip" hidden></button>
     <button class="iconbtn" id="searchBtn" aria-label="Search"></button>
     <button class="iconbtn" id="menuBtn" aria-label="Menu"></button>
   </header>
@@ -1284,7 +1296,7 @@ function render(){
   const m=activeMember();
   $('#whoBtn').style.background=m.color; $('#whoInit').textContent=initials(m.name);
   $('#whoMini').innerHTML=svg('chev');
-  renderTabs(); renderCanvas(); renderChat(); renderPeek(); setFlap(); renderCtx(); creditBar();
+  renderTabs(); renderCanvas(); renderChat(); renderPeek(); setFlap(); renderCtx(); creditBar(); planChip();
 }
 function renderTabs(){
   const w=ws(), el=$('#tabs');
@@ -1561,12 +1573,13 @@ function planSheet(){
     (pro?'<span class="pn-until">Active until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'long'})+'</span>':'')+'</div>'+
     '<div class="meter"><i style="width:'+pct+'%" class="'+(pct>=100?'full':pct>80?'warn':'')+'"></i></div>'+
     '<div class="pn-stats"><span><b>'+rupees(b.usedInr)+'</b> of '+rupees(b.limitInr)+' AI used'+(pro?' this month':'')+'</span><span>≈ '+b.actionsLeft+' actions left</span></div>'+
+    (pro&&b.bonusInr>0?'<div class="pn-stats"><span>Includes '+rupees(b.bonusInr)+' of free credit you carried over</span></div>':'')+
     '<div class="pn-stats"><span>'+b.members+' of '+b.memberLimit+' people</span>'+(pro&&b.periodEnds?'<span>resets '+new Date(b.periodEnds).toLocaleDateString(undefined,{day:'numeric',month:'short'})+'</span>':'')+'</div></div>';
   h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+rupees(b.priceInr)+'<small>/ 30 days</small></span></div><ul class="pc-list">'+
     '<li>'+svg('check')+'Up to '+b.proMembers+' people in the workspace</li>'+
     '<li>'+svg('check')+'About '+b.proActions.toLocaleString('en-IN')+' AI actions a month (fair use)</li>'+
     '<li>'+svg('check')+'Questions, screenshots, imports and custom views</li></ul>'+
-    (b.paymentsReady?'<button class="auth-btn" id="payPro" style="width:100%">'+(pro?'Add 30 days · ':'Upgrade · ')+rupees(b.priceInr)+'</button><div class="note" style="text-align:center">Secure payment by Razorpay — UPI, cards, netbanking</div>'
+    (b.paymentsReady?'<button class="auth-btn" id="payPro" style="width:100%">'+(pro?'Add 30 days · ':'Upgrade now · ')+rupees(b.priceInr)+'</button><div class="note" style="text-align:center">'+(!pro&&b.leftInr>0?'Upgrade any time — your unused '+rupees(b.leftInr)+' of free credit moves into your first Pro month.':'Secure payment by Razorpay — UPI, cards, netbanking')+'</div>'
       :'<button class="auth-btn" disabled style="width:100%">Upgrades open soon</button>')+'</div>'+
     '<div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>';
   openSheet(h); }
@@ -1587,6 +1600,12 @@ async function payPro(btn){
     rzp.open();
   }catch(e){ toast(e.message); if(btn){ btn.disabled=false; planSheet(); } } }
 function celebrate(){ toast('Welcome to Pro! You’re all set.'); const m=$('#mark'); if(m){ m.classList.add('happy'); setTimeout(()=>m.classList.remove('happy'),1600); } buzz(30); }
+// Top-bar chip: the plan at a glance ("Free · ₹14 left", or "Pro"). Tapping it opens Plan & usage.
+function planChip(){ const el=$('#planChip'), b=bill(); if(!el) return; if(!b){ el.hidden=true; return; } el.hidden=false;
+  const frac=b.limitInr?b.leftInr/b.limitInr:0;
+  el.className='plan-chip'+(b.plan==='pro'?' pro':!b.ok?' out':frac<.25?' low':'');
+  el.innerHTML=b.plan==='pro'?'<b>PRO</b>':!b.ok?'<b>Upgrade</b>':'<span>Free</span><b>'+rupees(b.leftInr)+' left</b>';
+  el.setAttribute('aria-label',b.plan==='pro'?'Pro plan — see usage':'Free plan, '+rupees(b.leftInr)+' of AI left — see plans'); }
 function creditBar(){ const b=bill(), el=$('#creditBar'); if(!el) return; if(b&&!b.ok){ el.hidden=false;
   el.innerHTML=(b.plan==='pro'?'This month’s AI allowance is used up':'Your free AI credit is used up')+' · <b>'+(b.plan==='pro'?'See plan':'Upgrade')+'</b>'; } else el.hidden=true; }
 
@@ -2323,9 +2342,59 @@ var voice={on:false,session:0,rec:null,base:'',done:'',stopping:false,blocked:fa
 function setListening(on,hint){
   $('#listening').hidden=!on; const mb=$('#micBtn'); mb.classList.toggle('rec',on);
   mb.innerHTML=svg(on?'stop':'mic'); mb.setAttribute('aria-label',on?'Finish voice note':'Voice note');
-  $('#listenHint').textContent=hint||'Listening…'; }
+  voice.hint=hint||''; $('#listenHint').textContent=hint||'Listening…'; }
 function voiceText(seg){ return (voice.base+voice.done+' '+seg).replace(/\s+/g,' ').trim(); }
+/* ---- Better voice: record here, a proper speech-to-text model writes it out (server). ----
+   Used when the server has a transcription provider; otherwise the browser's recognition below.
+   Audio goes up in ≤25-second segments (one provider's limit), joined back into one note. */
+const SEG_MS=25000, MAX_MS=180000;
+function serverVoice(){ return !!(state.config&&state.config.transcribe&&window.MediaRecorder&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia); }
+function pickMime(){ return ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'].find(m=>{ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } })||''; }
+async function recStart(sess){
+  let stream;
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); }
+  catch(e){ if(sess===voice.session){ voice.on=false; voice.session++; setListening(false); if(e&&e.name==='NotAllowedError'){ voice.blocked=true; $('#micBtn').classList.add('off'); toast(VOICE_MSG); } else toast('No microphone found'); } return; }
+  if(sess!==voice.session){ stream.getTracks().forEach(t=>t.stop()); return; }
+  voice.stream=stream; voice.segs=[]; voice.mime=pickMime(); voice.t0=Date.now();
+  try{ const AC=window.AudioContext||window.webkitAudioContext; voice.ac=new AC(); const an=voice.ac.createAnalyser(); an.fftSize=256; voice.ac.createMediaStreamSource(stream).connect(an); voice.an=an; }catch(e){}
+  recSegment(sess);
+  voice.tick=setInterval(()=>{ if(sess!==voice.session||voice.stopping) return; const ms=Date.now()-voice.t0;
+    $('#listenHint').textContent=Math.floor(ms/60000)+':'+String(Math.floor(ms/1000)%60).padStart(2,'0')+' · '+(voice.hint||'Listening…'); if(ms>=MAX_MS) stopVoice(); },250);
+  // The bars follow your voice.
+  const bars=[...document.querySelectorAll('#listening .wave i')], data=new Uint8Array(128);
+  const draw=()=>{ if(sess!==voice.session||!voice.an||voice.stopping) return; voice.an.getByteTimeDomainData(data); let m=0; for(const v of data) m=Math.max(m,Math.abs(v-128));
+    const lvl=Math.min(1,m/48); bars.forEach((b,i)=>{ b.style.animation='none'; b.style.height=(3+lvl*11*(.55+.45*Math.abs(Math.sin(Date.now()/140+i*1.3))))+'px'; }); voice.raf=requestAnimationFrame(draw); };
+  draw(); }
+function recSegment(sess){
+  const mr=new MediaRecorder(voice.stream, voice.mime?{mimeType:voice.mime}:undefined), chunks=[], t0=Date.now();
+  mr.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  mr.onstop=()=>{ voice.segs.push({blob:new Blob(chunks,{type:mr.mimeType||voice.mime||'audio/webm'}),ms:Date.now()-t0});
+    if(sess!==voice.session) return; if(voice.stopping) recUpload(sess); else if(voice.on) recSegment(sess); };
+  voice.mr=mr; mr.start();
+  clearTimeout(voice.segT); voice.segT=setTimeout(()=>{ if(sess===voice.session&&mr.state==='recording') mr.stop(); },SEG_MS); }
+function recRelease(){ clearTimeout(voice.segT); clearInterval(voice.tick); cancelAnimationFrame(voice.raf);
+  if(voice.stream) voice.stream.getTracks().forEach(t=>t.stop()); voice.stream=null; try{ voice.ac&&voice.ac.close(); }catch(e){} voice.ac=null; voice.an=null; voice.mr=null;
+  document.querySelectorAll('#listening .wave i').forEach(b=>{ b.style.animation=''; b.style.height=''; }); }
+async function recUpload(sess){
+  recRelease(); $('#listenHint').textContent='Writing it out…';
+  let text='', failed=null;
+  for(const sg of voice.segs.filter(x=>x.blob.size>800)){
+    try{ const r=await fetch('/api/workspaces/'+ws().id+'/transcribe',{method:'POST',credentials:'same-origin',body:sg.blob,
+        headers:{'content-type':sg.blob.type||'audio/webm','x-duration-ms':String(sg.ms),'x-client-id':CLIENT_ID}});
+      const j=await r.json().catch(()=>({})); if(!r.ok){ failed=j.error||'Couldn’t transcribe that.'; if(r.status===402) setTimeout(planSheet,500); break; }
+      text+=' '+(j.text||''); }
+    catch(e){ failed='Voice needs a connection — try again'; break; } }
+  if(sess!==voice.session) return;
+  if(text.trim()){ $('#input').value=(voice.base+text).replace(/\s+/g,' ').trim(); autosize(); updateSend(); scheduleRefresh(); }
+  if(failed) toast(failed); else if(!text.trim()) toast('I didn’t catch that — try again, a little closer to the mic');
+  finishVoice(sess); }
 function startVoice(){
+  if(serverVoice()){
+    if(voice.blocked){ toast(VOICE_MSG); return false; }
+    const cur=$('#input').value.trim();
+    voice.session++; voice.on=true; voice.server=true; voice.stopping=false; voice.base=cur?cur+' ':'';
+    setListening(true); recStart(voice.session); return true; }
+  voice.server=false;
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ toast(VOICE_UNSUPPORTED); return false; }
   if(voice.blocked){ toast(VOICE_MSG); return false; }
@@ -2354,6 +2423,9 @@ function listen(sess){
     finishVoice(sess); };
   try{ r.start(); }catch(e){ finishVoice(sess); toast('Voice input isn’t available here'); } }
 function stopVoice(){
+  if(voice.server){ if(!voice.on||voice.stopping) return;
+    if(!voice.mr){ cancelVoice(); return; } // still waiting for microphone permission
+    voice.stopping=true; setListening(true,'Writing it out…'); if(voice.mr.state==='recording') voice.mr.stop(); return; }
   if(!voice.on) return; voice.stopping=true; setListening(true,'Finishing…');
   const s=voice.session; try{ voice.rec&&voice.rec.stop(); }catch(e){ finishVoice(s); return; }
   setTimeout(()=>finishVoice(s),2500); } // in case the browser never reports the end
@@ -2364,6 +2436,7 @@ function finishVoice(sess){
   if(inp.value&&!matchMedia('(pointer: coarse)').matches){ try{ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length); }catch(e){} } }
 // Sending, or typing over the transcript, ends the recording and drops whatever it hears next.
 function cancelVoice(){
+  if(voice.server){ if(!voice.on) return; voice.on=false; voice.session++; try{ voice.mr&&voice.mr.state==='recording'&&voice.mr.stop(); }catch(e){} recRelease(); setListening(false); return; }
   if(!voice.on) return; voice.on=false; voice.session++;
   try{ voice.rec&&voice.rec.abort(); }catch(e){} setListening(false); }
 function bindMic(){
@@ -2544,6 +2617,7 @@ function bind(){
   $('#wsBtn').onclick=workspaceSheet;
   $('#whoBtn').onclick=teamSheet;
   $('#creditBar').onclick=planSheet;
+  $('#planChip').onclick=planSheet;
   $('#collapseBtn').onclick=collapseChat;
   $('#peek').addEventListener('click',e=>{ if(e.target.closest('.pk-close')){ const m=ws().messages; hiddenPeek=m.length?m[m.length-1].id:null; renderPeek(); return; }
     const t=e.target.closest('[data-open]'); if(t){ openRecord(t.dataset.open); return; } expandChat(); });

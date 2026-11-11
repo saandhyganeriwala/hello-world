@@ -15,7 +15,8 @@ import { processMessage, type ImageInput } from "../domain/messages.js";
 import { applyImport, fallbackPlan, type Sheet } from "../domain/import.js";
 import { cleanKey, esc } from "../domain/helpers.js";
 import { removeView, sanitizeView, upsertView } from "../domain/views.js";
-import { assertCanAddMember, billingStatus, LimitError, proActions, recordUsage } from "../domain/billing.js";
+import { assertCanAddMember, billingStatus, freeActions, LimitError, proActions, recordUsage } from "../domain/billing.js";
+import { transcribe, transcribeCostUsd, transcribeProvider, TranscribeError } from "../ai/transcribe.js";
 import { publish, subscribe } from "../realtime.js";
 
 export const api = new Hono<AppEnv>();
@@ -28,8 +29,8 @@ const bigBody = bodyLimit({ maxSize: 25 * 1024 * 1024, onError: (c) => c.json({ 
 
 api.get("/health", (c) => c.json({ ok: true }));
 api.get("/config", (c) => c.json({
-  otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod,
-  plans: { freeCreditInr: env.freeCreditInr, freeMembers: env.freeMembers, proPriceInr: env.proPriceInr, proDays: env.proDays,
+  otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod, transcribe: !!transcribeProvider(),
+  plans: { freeCreditInr: env.freeCreditInr, freeActions: freeActions(), freeMembers: env.freeMembers, proPriceInr: env.proPriceInr, proDays: env.proDays,
     proMembers: env.proMembers, proActions: proActions(), paymentsReady: env.paymentsReady },
 }));
 
@@ -269,6 +270,35 @@ api.post("/workspaces/:id/views", async (c) => {
   await db.update(sections).set({ views }).where(eq(sections.id, s.id));
   changed(c, id);
   return c.json({ state: await stateOf(c, id) });
+});
+
+// ----- voice notes → text -----
+// Raw audio in the body (content-type = the recording's type), x-duration-ms = its length.
+api.post("/workspaces/:id/transcribe", bodyLimit({ maxSize: 12 * 1024 * 1024, onError: (c) => c.json({ error: "That recording is too long." }, 413) }), async (c) => {
+  if (!(await access(c))) return notFound(c);
+  const id = c.req.param("id"), user = c.get("user");
+  if (!transcribeProvider()) return c.json({ error: "Voice transcription isn't set up." }, 503);
+  const bill = await billingStatus(id);
+  if (!bill.ok) return c.json({ error: bill.plan === "pro" ? "This month's AI allowance is used up." : "Your free AI credit is used up — upgrade to keep using voice.", limit: true }, 402);
+  const audio = Buffer.from(await c.req.arrayBuffer());
+  if (audio.length < 800) return c.json({ text: "" });
+  const seconds = Math.min(600, Math.max(1, Number(c.req.header("x-duration-ms") || 0) / 1000 || audio.length / 4000));
+  // Names and products from this workspace help the model spell them right (OpenAI uses it as a prompt).
+  const recs = await getDb().select({ fields: records.fields }).from(records).where(eq(records.workspaceId, id)).limit(300);
+  const words = new Set<string>();
+  for (const r of recs) for (const k of ["Title", "Customer", "Name", "Product", "Item", "Supplier"]) { const v = r.fields?.[k]; if (v && v.length < 40) words.add(v); }
+  const mem = await getDb().select({ name: members.name }).from(members).where(eq(members.workspaceId, id));
+  mem.forEach((m) => m.name && words.add(m.name));
+  const prompt = words.size ? `A short business voice note, often Indian English or Hinglish. Names and items that may come up: ${[...words].slice(0, 80).join(", ")}.` : "A short business voice note, often Indian English or Hinglish.";
+  try {
+    const out = await transcribe(audio, c.req.header("content-type") || "audio/webm", { prompt });
+    await recordUsage(id, user.id, { label: "transcribe", model: out.model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, transcribeCostUsd(out.provider, out.model, seconds));
+    console.log(JSON.stringify({ voice: out.provider, model: out.model, seconds: Math.round(seconds), chars: out.text.length }));
+    return c.json({ text: out.text });
+  } catch (e) {
+    if (e instanceof TranscribeError) return c.json({ error: "Sorry — I couldn't make out that voice note. Please try again." }, 502);
+    throw e;
+  }
 });
 
 // ----- spreadsheet import -----

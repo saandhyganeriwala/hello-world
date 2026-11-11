@@ -20,6 +20,8 @@ type ImageInput = { data: string; mediaType: "image/jpeg" | "image/png" | "image
 export type AiUsage = { label: string; model: string; input: number; output: number; cacheRead: number; cacheWrite: number };
 export type OnUsage = (u: AiUsage) => void | Promise<void>;
 
+// The system prompt is cached for an hour (writes cost 2× input, reads 0.1×): messages spread
+// through a working day keep hitting the cache instead of re-writing it every 5 minutes.
 // Strict structured outputs first. If the API ever rejects the schema (grammar too large / too complex),
 // switch to plain JSON for the rest of the process and validate it here, instead of failing every message.
 let useStrict = true;
@@ -38,10 +40,10 @@ async function structured<S extends z.ZodType>(
 ): Promise<z.infer<S> | null> {
   if (!client) throw new AiUnavailable("ANTHROPIC_API_KEY is not set");
   const strict = useStrict;
-  const sys: any[] = [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+  const sys: any[] = [{ type: "text", text: system, cache_control: { type: "ephemeral", ttl: "1h" } }];
   if (!strict) {
     sys[0] = { type: "text", text: system };
-    sys.push({ type: "text", cache_control: { type: "ephemeral" }, text:
+    sys.push({ type: "text", cache_control: { type: "ephemeral", ttl: "1h" }, text:
       "Reply with ONLY one JSON object — no prose, no code fences — matching this JSON Schema exactly (every property present):\n" +
       JSON.stringify(toJSONSchema(schema)) });
   }
