@@ -29,7 +29,15 @@ export const env = {
   // How people log in: "email" (code sent by email via Resend) or "whatsapp" (code via Interakt).
   loginMethod: ((process.env.LOGIN_METHOD || "email").toLowerCase() === "whatsapp" ? "whatsapp" : "email") as "email" | "whatsapp",
 
-  // Email OTP via Resend (resend.com).
+  // Email OTP: Brevo (brevo.com) or Resend (resend.com). EMAIL_PROVIDER picks; otherwise whichever key is set.
+  brevoKey: process.env.BREVO_API_KEY || "",
+  brevoBaseUrl: (process.env.BREVO_BASE_URL || "https://api.brevo.com/v3").replace(/\/$/, ""),
+  get emailProvider(): "brevo" | "resend" | "" {
+    const want = (process.env.EMAIL_PROVIDER || "").toLowerCase();
+    if (want === "brevo") return this.brevoKey ? "brevo" : "";
+    if (want === "resend") return this.resendKey ? "resend" : "";
+    return this.brevoKey ? "brevo" : this.resendKey ? "resend" : "";
+  },
   resendKey: process.env.RESEND_API_KEY || "",
   resendBaseUrl: (process.env.RESEND_BASE_URL || "https://api.resend.com").replace(/\/$/, ""),
   // Must be on a domain you've verified in Resend, e.g. "CRUD.chat <login@crud.chat>".
@@ -46,7 +54,7 @@ export const env = {
 
   /** True when the chosen login method has the credentials it needs to send codes. */
   get otpProviderReady() {
-    return this.loginMethod === "email" ? !!this.resendKey : !!(this.interaktKey && this.interaktTemplate);
+    return this.loginMethod === "email" ? !!this.emailProvider : !!(this.interaktKey && this.interaktTemplate);
   },
 
   // When true, the OTP is shown on screen instead of being sent.
@@ -95,11 +103,11 @@ export function assertProdConfig() {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
   if (!env.anthropicKey) console.warn("[config] ANTHROPIC_API_KEY not set — using the on-device fallback parser (no questions/commands).");
-  console.log(`[config] login by ${env.loginMethod}`);
+  console.log(`[config] login by ${env.loginMethod}${env.loginMethod === "email" && env.emailProvider ? ` (via ${env.emailProvider})` : ""}`);
   if (env.otpDevMode) console.warn("[config] OTP_DEV_MODE is on — login codes are shown on screen, not sent.");
   else if (!env.otpProviderReady) {
     console.warn(env.loginMethod === "email"
-      ? "[config] RESEND_API_KEY is not set — login will fail."
+      ? "[config] No email provider (BREVO_API_KEY or RESEND_API_KEY) — login will fail."
       : "[config] Interakt is not fully configured (INTERAKT_API_KEY / INTERAKT_OTP_TEMPLATE) — login will fail.");
   }
 }

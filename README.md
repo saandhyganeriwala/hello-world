@@ -99,6 +99,18 @@ users sign up — an email account and a phone account are separate people.
 To test before either is set up, set `OTP_DEV_MODE=true`: the code is shown on screen. Turn it off for
 real users.
 
+### Email (Brevo — recommended: 300 free emails a day)
+
+1. Sign up at [brevo.com](https://www.brevo.com).
+2. *Settings → Senders, Domains & Dedicated IPs → Domains → Add a domain* → `crud.chat` → add the records
+   it shows (a `brevo-code` TXT, DKIM, and DMARC) at your DNS host → *Authenticate*.
+3. *Settings → SMTP & API → API Keys → Generate a new API key* → set `BREVO_API_KEY` on Railway.
+4. *Security → Authorised IPs*: Railway's outgoing address changes, so turn IP blocking off (or calls fail
+   with an "unrecognised IP" error).
+5. Set `EMAIL_FROM=CRUD.chat <login@crud.chat>` and `OTP_DEV_MODE=false`.
+
+The email is built in `src/auth/email.ts`.
+
 ### Email (Resend)
 
 1. Sign up at [resend.com](https://resend.com) (free tier: 3,000 emails/month).
