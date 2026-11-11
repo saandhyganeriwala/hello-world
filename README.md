@@ -148,7 +148,7 @@ model's per-million prices in `src/domain/billing.ts`) and stored in `ai_usage` 
 | Plan | Price | AI | People |
 |---|---|---|---|
 | Free | ₹0 / $0 | 10 AI actions per person, once (`FREE_ACTIONS`) | 3 (`FREE_MEMBERS`) |
-| Pro | ₹999 in India / $12 elsewhere, per 30 days (`PRO_PRICE_INR`, `PRO_PRICE_USD`) | fair use: ₹450 of AI per 30 days (`PRO_MONTHLY_AI_INR`), shown as ≈ 1,000 actions | 10 (`PRO_MEMBERS`) |
+| Pro | ₹499 in India / $6 elsewhere, a month, renews automatically (`PRO_PRICE_INR`, `PRO_PRICE_USD`) | fair use: ₹225 of AI a month (`PRO_MONTHLY_AI_INR`), shown as ≈ 500 actions | 10 (`PRO_MEMBERS`) |
 
 A typical action costs about ₹0.35–0.45 (measured in production: ~700 new tokens in, ~250 out, the
 6,300-token instructions read from Claude's one-hour prompt cache). Free actions belong to the person,
@@ -161,15 +161,28 @@ When a workspace runs out, CRUD still saves plain records with the on-device par
 screenshots, imports and interface changes ask for an upgrade. Viewing, editing and searching never cost.
 The *Plan & usage* screen (menu → Plan & usage) shows what's used and what's left.
 
-**Razorpay** (Pro is a one-time payment per 30 days; paying again extends it):
+**Razorpay Subscriptions** (Pro renews every month until cancelled):
 1. Razorpay Dashboard → *Account & Settings → API Keys* → generate keys (use **Test Mode** first) →
    set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` on Railway.
-2. *Account & Settings → Webhooks → Add New Webhook* → URL `https://crud.chat/api/billing/razorpay-webhook`,
-   events **payment.captured** and **order.paid**, a secret of your choice → set it as `RAZORPAY_WEBHOOK_SECRET`.
-3. Test with a test card or UPI ID `success@razorpay`, then switch to live keys.
+2. Make sure **Subscriptions** is enabled on the account (Dashboard → *Subscriptions*). The monthly plan
+   is created automatically on the first checkout and remembered (`razorpay_plans`); to use a plan you made
+   in the dashboard instead, set `RAZORPAY_PLAN_ID_INR` / `RAZORPAY_PLAN_ID_USD`. A price change creates a new plan.
+3. *Account & Settings → Webhooks → Add New Webhook* → URL `https://crud.chat/api/billing/razorpay-webhook`,
+   a secret of your choice (→ `RAZORPAY_WEBHOOK_SECRET`), events **subscription.activated**, **subscription.charged**,
+   **subscription.pending**, **subscription.halted**, **subscription.cancelled**, **subscription.completed**,
+   **subscription.paused**, **subscription.resumed**.
+4. Test with a test card, then switch to live keys (and add the webhook again in Live Mode).
 
-The browser verifies each payment's signature with the server, and the webhook does the same from
-Razorpay's side; activation is idempotent per order. Code: `src/routes/billing.ts`.
+How it runs: *Subscribe* creates a subscription; Checkout takes the first payment and sets up the mandate
+(card or UPI Autopay); the browser's signed response (`payment_id|subscription_id`) switches the workspace to
+Pro for the period Razorpay reports. Each `subscription.charged` webhook starts the next month (usage resets,
+carried-over free actions end). Pro stays on `PRO_GRACE_DAYS` (3) past a renewal date while Razorpay retries a
+failed charge; `halted` ends it. *Cancel subscription* (Plan & usage) cancels at the end of the paid month — no
+refunds for a started period. Every charge is counted once per payment id. Code: `src/routes/billing.ts`,
+`src/domain/billing.ts`.
+
+**Policy pages** (Razorpay's website checks): `/terms`, `/privacy`, `/refunds`, `/contact`, `/shipping` —
+static files in `public/`, linked from the landing page footer.
 
 ## Costs
 

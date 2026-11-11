@@ -997,6 +997,7 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
 .pc-price small{font-family:var(--font);font-size:12px;font-weight:600;color:var(--muted);margin-left:3px}
 .pc-list{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:8px;font-size:14px}
 .pc-list li{display:flex;gap:9px;align-items:flex-start}
+.pro-card .note a{color:var(--fg-2);text-decoration-color:var(--marigold);text-decoration-thickness:2px;text-underline-offset:2px}
 .pc-list svg{width:16px;height:16px;flex:none;color:var(--good);margin-top:2px}
 
 /* ---- plan chip ---- */
@@ -1568,25 +1569,44 @@ const IN_INDIA=(()=>{ try{ const tz=Intl.DateTimeFormat().resolvedOptions().time
 function price(b){ return IN_INDIA?'₹'+Number(b.priceInr).toLocaleString('en-IN'):'$'+b.priceUsd; }
 function canPay(b){ return IN_INDIA?b.paymentsReady:b.usdPaymentsReady; }
 function n(x){ return Number(x).toLocaleString(IN_INDIA?'en-IN':undefined); }
+const dShort=t=>new Date(t).toLocaleDateString(undefined,{day:'numeric',month:'short'}), dLong=t=>new Date(t).toLocaleDateString(undefined,{day:'numeric',month:'long'});
+function subState(b){ return b.subscription?b.subscription.status:''; }
 function planLine(){ const b=bill(); if(!b) return '';
-  return b.plan==='pro'?'Pro · until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'Free · '+b.actionsLeft+' of '+b.actionsLimit+' AI actions left'; }
+  return b.plan==='pro'?(b.renewsAt?'Pro · renews '+dShort(b.renewsAt):'Pro · until '+dShort(b.periodEnds||b.planUntil)):'Free · '+b.actionsLeft+' of '+b.actionsLimit+' AI actions left'; }
 function planSheet(){
   const b=bill(); if(!b){ toast('Loading…'); return; }
-  const pct=Math.min(100,b.actionsLimit?b.actionsUsed/b.actionsLimit*100:0), pro=b.plan==='pro';
+  const pct=Math.min(100,b.actionsLimit?b.actionsUsed/b.actionsLimit*100:0), pro=b.plan==='pro', st=subState(b);
+  const subscribed=pro&&['active','pending','cancelling'].includes(st);
+  const until=pro?(st==='pending'?'Renewal payment being retried':b.renewsAt?'Renews '+dLong(b.renewsAt):'Ends '+dLong(b.periodEnds||b.planUntil)):'';
   let h='<h3>Plan & usage</h3><div class="plan-now"><div class="pn-top"><span class="pn-badge'+(pro?' pro':'')+'">'+(pro?'Pro':'Free')+'</span>'+
-    (pro?'<span class="pn-until">Active until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'long'})+'</span>':'')+'</div>'+
+    (pro?'<span class="pn-until">'+until+'</span>':'')+'</div>'+
     '<div class="meter"><i style="width:'+pct+'%" class="'+(pct>=100?'full':pct>80?'warn':'')+'"></i></div>'+
     '<div class="pn-stats"><span><b>'+(pro?'≈ ':'')+n(b.actionsLeft)+'</b> of '+n(b.actionsLimit)+' AI actions left'+(pro?' this month':'')+'</span></div>'+
     (pro&&b.bonusActions>0?'<div class="pn-stats"><span>Includes '+b.bonusActions+' free actions you carried over</span></div>':'')+
-    '<div class="pn-stats"><span>'+b.members+' of '+b.memberLimit+' people</span>'+(pro&&b.periodEnds?'<span>resets '+new Date(b.periodEnds).toLocaleDateString(undefined,{day:'numeric',month:'short'})+'</span>':'')+'</div></div>';
+    '<div class="pn-stats"><span>'+b.members+' of '+b.memberLimit+' people</span>'+(pro&&b.periodEnds&&!b.renewsAt?'<span>resets '+dShort(b.periodEnds)+'</span>':'')+'</div></div>';
   h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+price(b)+'<small>/ month</small></span></div><ul class="pc-list">'+
     '<li>'+svg('check')+'Up to '+b.proMembers+' people in the workspace</li>'+
     '<li>'+svg('check')+'About '+n(b.proActions)+' AI actions a month (fair use)</li>'+
-    '<li>'+svg('check')+'Questions, screenshots, imports and custom views</li></ul>'+
-    (canPay(b)?'<button class="auth-btn" id="payPro" style="width:100%">'+(pro?'Add 30 days · ':'Upgrade now · ')+price(b)+'</button><div class="note" style="text-align:center">'+(!pro&&b.actionsLeft>0?'Upgrade any time — your '+b.actionsLeft+' unused free actions move into your first Pro month.':IN_INDIA?'Secure payment — UPI, cards, netbanking':'Secure card payment')+'</div>'
-      :'<button class="auth-btn" disabled style="width:100%">Upgrades open soon</button>')+'</div>'+
-    '<div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>';
+    '<li>'+svg('check')+'Questions, screenshots, imports and custom views</li></ul>';
+  if(subscribed){
+    h+=st==='cancelling'
+      ?'<div class="note" style="text-align:center">Your subscription won’t renew. Pro stays on until '+dLong(b.periodEnds||b.planUntil)+', then this workspace moves to the free plan. Nothing is deleted.</div>'
+      :'<div class="note" style="text-align:center">Billed '+price(b)+' every month, automatically. Cancel any time — Pro stays on until the end of the month you’ve paid for.</div>'+
+       '<button class="btn danger" id="cancelSub" style="width:100%;justify-content:center;margin-top:8px">Cancel subscription</button>';
+  } else if(canPay(b)){
+    h+='<button class="auth-btn" id="payPro" style="width:100%">Subscribe · '+price(b)+' / month</button><div class="note" style="text-align:center">'+
+      (!pro&&b.actionsLeft>0?'Your '+b.actionsLeft+' unused free actions move into your first month. ':'')+'Renews monthly, cancel any time. '+(IN_INDIA?'UPI Autopay or card.':'Card payments.')+
+      ' <a href="/terms" target="_blank" rel="noopener">Terms</a> · <a href="/refunds" target="_blank" rel="noopener">Refunds</a></div>';
+  } else h+='<button class="auth-btn" disabled style="width:100%">Upgrades open soon</button>';
+  h+='</div><div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>';
   openSheet(h); }
+let cancelArmed=false, cancelT;
+async function cancelSub(btn){
+  if(!cancelArmed){ cancelArmed=true; btn.classList.add('armed'); btn.textContent='Tap again to cancel';
+    clearTimeout(cancelT); cancelT=setTimeout(()=>{ cancelArmed=false; if(btn.isConnected){ btn.classList.remove('armed'); btn.textContent='Cancel subscription'; } },2600); return; }
+  cancelArmed=false; btn.disabled=true; btn.textContent='Cancelling…';
+  try{ const out=await api('POST','/workspaces/'+ws().id+'/billing/cancel',{}); applyServerState(out.state); render(); planSheet(); toast('Cancelled — Pro stays on until the end of this month.'); }
+  catch(e){ toast(e.message); btn.disabled=false; btn.classList.remove('armed'); btn.textContent='Cancel subscription'; } }
 let rzpLoading=null;
 function loadRazorpay(){ if(window.Razorpay) return Promise.resolve(); if(rzpLoading) return rzpLoading;
   rzpLoading=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://checkout.razorpay.com/v1/checkout.js'; s.onload=res; s.onerror=()=>{ rzpLoading=null; rej(new Error('Couldn’t load the payment window. Check your connection.')); }; document.head.appendChild(s); });
@@ -1594,8 +1614,8 @@ function loadRazorpay(){ if(window.Razorpay) return Promise.resolve(); if(rzpLoa
 async function payPro(btn){
   const id=ws().id; if(btn){ btn.disabled=true; btn.textContent='Opening payment…'; }
   try{
-    const [o]=await Promise.all([api('POST','/workspaces/'+id+'/billing/order',{region:IN_INDIA?'IN':'INTL'}),loadRazorpay()]);
-    const rzp=new window.Razorpay({ key:o.keyId, order_id:o.orderId, amount:o.amount, currency:o.currency, name:o.name, description:o.description,
+    const [o]=await Promise.all([api('POST','/workspaces/'+id+'/billing/subscribe',{region:IN_INDIA?'IN':'INTL'}),loadRazorpay()]);
+    const rzp=new window.Razorpay({ key:o.keyId, subscription_id:o.subscriptionId, name:o.name, description:o.description,
       prefill:o.prefill, notes:{workspace:ws().name}, theme:{color:'#FFC31F'},
       handler:async(resp)=>{ try{ const out=await api('POST','/workspaces/'+id+'/billing/verify',resp); applyServerState(out.state); closeSheet(); render(); celebrate(); }
         catch(e){ toast(e.message); } },
@@ -2697,6 +2717,7 @@ async function armDelete(btn){
 }
 function sheetClick(e){
   if(e.target.closest('#payPro')){ payPro(e.target.closest('#payPro')); return; }
+  if(e.target.closest('#cancelSub')){ cancelSub(e.target.closest('#cancelSub')); return; }
   if(e.target.closest('#mPlan')){ planSheet(); return; }
   if(sheetViewClick(e)) return;
   if(customizeClick(e)) return;

@@ -46,10 +46,14 @@ export const workspaces = pgTable("workspaces", {
   accent: text("accent"),
   // Shareable code for invite links (/app/join/<code>). Anyone logged in with it can join.
   inviteCode: text("invite_code").unique(),
-  // Billing: "free" (₹50 of AI) or "pro" until plan_until. Fair usage resets every 30 days from period_start.
+  // Billing: "free" or "pro" until plan_until. Pro is a monthly Razorpay subscription: each charge
+  // starts a new billing period (period_start → renews_at); plan_until = renews_at plus a few days' grace
+  // so a late renewal webhook doesn't drop anyone to free. Fair usage resets with each period.
   plan: text("plan").notNull().default("free"),
   planUntil: ts("plan_until"),
   periodStart: ts("period_start"),
+  renewsAt: ts("renews_at"),
+  subscriptionId: text("subscription_id"),
   // Unused free credit carried into the first Pro period when upgrading early.
   bonusInr: doublePrecision("bonus_inr").notNull().default(0),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
@@ -143,10 +147,35 @@ export const payments = pgTable("payments", {
   workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
   orderId: text("order_id").notNull().unique(),
-  paymentId: text("payment_id"),
+  paymentId: text("payment_id").unique(),
+  subscriptionId: text("subscription_id"),
   amount: integer("amount").notNull(),            // paise
   currency: text("currency").notNull().default("INR"),
   status: text("status").notNull().default("created"), // created | paid
   createdAt: ts("created_at").notNull().defaultNow(),
   paidAt: ts("paid_at"),
+});
+
+// A Razorpay subscription (Pro, billed monthly). Created when someone starts checkout; the webhook
+// and the checkout callback move it along: created → active → (cancelling) → cancelled / halted.
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  subscriptionId: text("subscription_id").notNull().unique(),
+  planId: text("plan_id").notNull(),
+  amount: integer("amount").notNull(),            // paise / cents per month
+  currency: text("currency").notNull().default("INR"),
+  status: text("status").notNull().default("created"),
+  currentEnd: ts("current_end"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("subscriptions_workspace_idx").on(t.workspaceId)]);
+
+// Razorpay plan ids, created on first use. Keyed by API key + currency + amount, so test and
+// live mode, and a price change, each get their own plan.
+export const razorpayPlans = pgTable("razorpay_plans", {
+  key: text("key").primaryKey(),
+  planId: text("plan_id").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
 });

@@ -25,6 +25,10 @@ app.onError((err, c) => {
 // The app lives at /app; the landing page is everything else.
 app.get("/app", serveStatic({ path: "./public/app.html" }));
 app.get("/app/*", serveStatic({ path: "./public/app.html" }));
+// Policy pages (Razorpay asks for these): /terms, /privacy, /refunds, /contact, /shipping.
+for (const page of ["terms", "privacy", "refunds", "contact", "shipping"]) {
+  app.get(`/${page}`, serveStatic({ path: `./public/${page}.html` }));
+}
 app.use("/*", serveStatic({ root: "./public" }));
 app.get("*", serveStatic({ path: "./public/index.html" }));
 

@@ -111,8 +111,9 @@ check("new tracker section gets its view", s.sections["Water Intake"].kind === "
 check("snapshot lists saved views", (await buildSnapshot(wsId)).sections.some((x) => x.views.some((v) => v.name === "Today")));
 
 // Billing: price a call, 10 free actions per person, member limits, upgrade early (carry-over), pay twice.
-const { priceUsd, recordUsage, billingStatus, activatePayment, assertCanAddMember, LimitError } = await import("../src/domain/billing.js");
-const { payments, members } = await import("../src/db/schema.js");
+const { priceUsd, recordUsage, billingStatus, applyCharge, setSubscriptionStatus, addMonth, assertCanAddMember, LimitError } = await import("../src/domain/billing.js");
+const { payments, members, subscriptions } = await import("../src/db/schema.js");
+const { eq } = await import("drizzle-orm");
 const call = { label: "understand", model: "claude-sonnet-5-5", input: 700, output: 250, cacheRead: 6300, cacheWrite: 0 };
 check("prices a call from its tokens", Math.abs(priceUsd(call) - (700 * 2 + 250 * 10 + 6300 * 0.1) / 1e6) < 1e-12, priceUsd(call));
 let bs = await billingStatus(wsId);
@@ -126,21 +127,39 @@ check("free actions are per person, shared across their workspaces", (await bill
 for (let i = 0; i < 2; i++) await db.insert(members).values({ workspaceId: wsId, email: `t${i}@x.com`, name: "T" + i, color: "#000" });
 let blocked = false; try { await assertCanAddMember(wsId); } catch (e) { blocked = e instanceof LimitError; }
 check("free plan stops at 3 people", blocked);
-await db.insert(payments).values({ workspaceId: wsId, userId: u.id, orderId: "order_test_1", amount: 99900 });
-const p1 = await activatePayment("order_test_1", "pay_1"), p2 = await activatePayment("order_test_1", "pay_1");
+await db.insert(subscriptions).values({ workspaceId: wsId, userId: u.id, subscriptionId: "sub_test_1", planId: "plan_x", amount: 49900 });
+const DAYMS = 864e5, t0 = new Date(), t1 = addMonth(t0);
+const p1 = await applyCharge({ subscriptionId: "sub_test_1", paymentId: "pay_1" });
+const p2 = await applyCharge({ subscriptionId: "sub_test_1", paymentId: "pay_1", periodStart: t0, periodEnd: t1 }); // webhook after checkout
 bs = await billingStatus(wsId);
-check("payment activates Pro once (idempotent)", p1.ok && !(p1 as any).already && (p2 as any).already && bs.plan === "pro", { p1, p2, plan: bs.plan });
-check("upgrading early carries the 4 unused free actions into the first month", bs.bonusActions === 4 && bs.actionsLimit === 1000 + 4, { bonus: bs.bonusActions, limit: bs.actionsLimit });
+check("first charge activates Pro once (idempotent)", p1.ok && !(p1 as any).already && (p2 as any).already && bs.plan === "pro", { p1, p2, plan: bs.plan });
+check("upgrading early carries the 4 unused free actions into the first month", bs.bonusActions === 4 && bs.actionsLimit === 500 + 4, { bonus: bs.bonusActions, limit: bs.actionsLimit });
 check("…and those free actions are used up (no double counting)", !(await billingStatus(ws2)).ok);
-check("Pro: ~1,000 actions, 10 people, ~30 days", bs.ok && bs.actionsUsed === 0 && bs.memberLimit === 10 && Math.round((bs.planUntil! - Date.now()) / 864e5) === 30, bs);
+check("Pro: 500 actions, 10 people, renews in a month (+3 days' grace)", bs.ok && bs.actionsUsed === 0 && bs.memberLimit === 10
+  && bs.renewsAt === t1.getTime() && bs.planUntil === t1.getTime() + 3 * DAYMS && bs.subscription?.status === "active", bs);
+check("addMonth keeps month ends sane", addMonth(new Date("2027-01-31T10:00:00Z")).toISOString().startsWith("2027-02-28") && addMonth(new Date("2027-03-15T00:00:00Z")).toISOString().startsWith("2027-04-15"));
 for (let i = 0; i < 5; i++) await recordUsage(wsId, u.id, call);
 const after = await billingStatus(wsId);
 check("Pro usage comes out of the Pro allowance", after.actionsLeft < bs.actionsLeft && after.usedInr > 0, { before: bs.actionsLeft, after: after.actionsLeft });
-await db.insert(payments).values({ workspaceId: wsId, userId: u.id, orderId: "order_test_2", amount: 99900 });
-await activatePayment("order_test_2", "pay_2");
+// Renewal: Razorpay charges again for the next month.
+const t2 = addMonth(t1);
+await applyCharge({ subscriptionId: "sub_test_1", paymentId: "pay_2", periodStart: new Date(), periodEnd: t2 });
 bs = await billingStatus(wsId);
-check("paying again extends Pro by 30 days", Math.round((bs.planUntil! - Date.now()) / 864e5) === 60, bs.planUntil);
-check("unknown order is refused", !(await activatePayment("order_nope", "x")).ok);
+check("renewal starts a fresh month: usage resets, carry-over ends, renews later", bs.renewsAt === t2.getTime() && bs.actionsUsed === 0 && bs.bonusActions === 0 && bs.actionsLimit === 500, bs);
+check("two payments recorded", (await db.select().from(payments).where(eq(payments.subscriptionId, "sub_test_1"))).length === 2);
+// Retry in progress: still Pro. Cancel: Pro until the paid period ends, no renewal shown.
+await setSubscriptionStatus("sub_test_1", "pending");
+check("failed renewal being retried keeps Pro", (await billingStatus(wsId)).plan === "pro");
+await setSubscriptionStatus("sub_test_1", "cancelling");
+await setSubscriptionStatus("sub_test_1", "active"); // a stray status event mustn't undo the cancellation
+bs = await billingStatus(wsId);
+check("cancelling keeps Pro to the end of the period, stops showing a renewal", bs.plan === "pro" && bs.subscription?.status === "cancelling" && bs.renewsAt === null && bs.periodEnds === t2.getTime(), bs);
+await setSubscriptionStatus("sub_test_1", "cancelled");
+bs = await billingStatus(wsId);
+check("cancelled: Pro until the paid date, grace removed", bs.plan === "pro" && bs.planUntil === t2.getTime(), bs.planUntil);
+await setSubscriptionStatus("sub_test_1", "halted");
+check("halted: back to free", (await billingStatus(wsId)).plan === "free");
+check("unknown subscription is refused", !(await applyCharge({ subscriptionId: "sub_nope", paymentId: "x" })).ok);
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

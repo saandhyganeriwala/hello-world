@@ -43,6 +43,13 @@
       "when": 1794365525472,
       "tag": "0005_free_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794423769926,
+      "tag": "0006_subscriptions",
+      "breakpoints": true
     }
   ]
 }

@@ -72,11 +72,12 @@ export const env = {
   actionInr: num(process.env.ACTION_INR, 0.45),               // typical cost of one AI action, for "≈ N actions" (from real usage)
   freeActions: num(process.env.FREE_ACTIONS, 10),             // free AI actions per person
   freeMembers: num(process.env.FREE_MEMBERS, 3),
-  proPriceInr: num(process.env.PRO_PRICE_INR, 999),           // per 30 days, in India
-  proPriceUsd: num(process.env.PRO_PRICE_USD, 12),            // per 30 days, everywhere else
-  proDays: num(process.env.PRO_DAYS, 30),
+  proPriceInr: num(process.env.PRO_PRICE_INR, 499),           // per month, in India (billed monthly by Razorpay Subscriptions)
+  proPriceUsd: num(process.env.PRO_PRICE_USD, 6),             // per month, everywhere else
+  proDays: num(process.env.PRO_DAYS, 30),                     // length of a period when Razorpay doesn't say
   proMembers: num(process.env.PRO_MEMBERS, 10),
-  proMonthlyAiInr: num(process.env.PRO_MONTHLY_AI_INR, 450),  // fair-usage AI budget per 30 days (≈ 1,000 actions)
+  proMonthlyAiInr: num(process.env.PRO_MONTHLY_AI_INR, 225),  // fair-usage AI budget per month (≈ 500 actions at ACTION_INR)
+  proGraceDays: num(process.env.PRO_GRACE_DAYS, 3),           // Pro stays on this long past a renewal date while Razorpay retries
   // ---- Voice transcription (see src/ai/transcribe.ts) ----
   transcribeProvider: (process.env.TRANSCRIBE_PROVIDER || "").toLowerCase(), // "openai" | "sarvam" | "" (auto)
   openaiKey: process.env.OPENAI_API_KEY || "",
@@ -92,6 +93,9 @@ export const env = {
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
   razorpayBaseUrl: (process.env.RAZORPAY_BASE_URL || "https://api.razorpay.com/v1").replace(/\/$/, ""),
   get paymentsReady() { return !!(this.razorpayKeyId && this.razorpayKeySecret); },
+  // Optional: use plans you created in the Razorpay dashboard. Otherwise they're created on first use.
+  razorpayPlanInr: process.env.RAZORPAY_PLAN_ID_INR || "",
+  razorpayPlanUsd: process.env.RAZORPAY_PLAN_ID_USD || "",
   // USD orders need International Payments (and USD) enabled on the Razorpay account.
   razorpayInternational: bool(process.env.RAZORPAY_INTERNATIONAL, false),
 };
