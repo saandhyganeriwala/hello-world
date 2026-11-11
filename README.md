@@ -147,12 +147,15 @@ model's per-million prices in `src/domain/billing.ts`) and stored in `ai_usage` 
 
 | Plan | Price | AI | People |
 |---|---|---|---|
-| Free | ₹0 | ₹20 of AI per person, once (`FREE_CREDIT_INR`), ≈ 40 actions | 3 (`FREE_MEMBERS`) |
-| Pro | ₹999 per 30 days (`PRO_PRICE_INR`) | fair use: ₹450 of AI per 30 days (`PRO_MONTHLY_AI_INR`), shown as ≈ 1,000 actions | 10 (`PRO_MEMBERS`) |
+| Free | ₹0 / $0 | 10 AI actions per person, once (`FREE_ACTIONS`) | 3 (`FREE_MEMBERS`) |
+| Pro | ₹999 in India / $12 elsewhere, per 30 days (`PRO_PRICE_INR`, `PRO_PRICE_USD`) | fair use: ₹450 of AI per 30 days (`PRO_MONTHLY_AI_INR`), shown as ≈ 1,000 actions | 10 (`PRO_MEMBERS`) |
 
 A typical action costs about ₹0.35–0.45 (measured in production: ~700 new tokens in, ~250 out, the
-6,300-token instructions read from Claude's one-hour prompt cache). Free credit belongs to the person,
-across all the free workspaces they own; upgrading early carries what's left into the first Pro month.
+6,300-token instructions read from Claude's one-hour prompt cache). Free actions belong to the person,
+across all the free workspaces they own (a voice transcription isn't an action of its own); upgrading early
+carries what's left into the first Pro month. Prices show in rupees in India and dollars elsewhere (by time
+zone, or Cloudflare's country header); USD checkout needs International Payments on Razorpay and
+`RAZORPAY_INTERNATIONAL=true`.
 
 When a workspace runs out, CRUD still saves plain records with the on-device parser; questions,
 screenshots, imports and interface changes ask for an upgrade. Viewing, editing and searching never cost.

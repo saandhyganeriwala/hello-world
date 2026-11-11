@@ -15,7 +15,7 @@ import { processMessage, type ImageInput } from "../domain/messages.js";
 import { applyImport, fallbackPlan, type Sheet } from "../domain/import.js";
 import { cleanKey, esc } from "../domain/helpers.js";
 import { removeView, sanitizeView, upsertView } from "../domain/views.js";
-import { assertCanAddMember, billingStatus, freeActions, LimitError, proActions, recordUsage } from "../domain/billing.js";
+import { assertCanAddMember, billingStatus, LimitError, proActions, recordUsage } from "../domain/billing.js";
 import { transcribe, transcribeCostUsd, transcribeProvider, TranscribeError } from "../ai/transcribe.js";
 import { publish, subscribe } from "../realtime.js";
 
@@ -30,7 +30,7 @@ const bigBody = bodyLimit({ maxSize: 25 * 1024 * 1024, onError: (c) => c.json({ 
 api.get("/health", (c) => c.json({ ok: true }));
 api.get("/config", (c) => c.json({
   otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod, transcribe: !!transcribeProvider(),
-  plans: { freeCreditInr: env.freeCreditInr, freeActions: freeActions(), freeMembers: env.freeMembers, proPriceInr: env.proPriceInr, proDays: env.proDays,
+  plans: { freeActions: env.freeActions, freeMembers: env.freeMembers, proPriceInr: env.proPriceInr, proPriceUsd: env.proPriceUsd, proDays: env.proDays,
     proMembers: env.proMembers, proActions: proActions(), paymentsReady: env.paymentsReady },
 }));
 
@@ -279,7 +279,7 @@ api.post("/workspaces/:id/transcribe", bodyLimit({ maxSize: 12 * 1024 * 1024, on
   const id = c.req.param("id"), user = c.get("user");
   if (!transcribeProvider()) return c.json({ error: "Voice transcription isn't set up." }, 503);
   const bill = await billingStatus(id);
-  if (!bill.ok) return c.json({ error: bill.plan === "pro" ? "This month's AI allowance is used up." : "Your free AI credit is used up — upgrade to keep using voice.", limit: true }, 402);
+  if (!bill.ok) return c.json({ error: bill.plan === "pro" ? "This month's AI allowance is used up." : "Your free AI actions are used up — upgrade to keep using voice.", limit: true }, 402);
   const audio = Buffer.from(await c.req.arrayBuffer());
   if (audio.length < 800) return c.json({ text: "" });
   const seconds = Math.min(600, Math.max(1, Number(c.req.header("x-duration-ms") || 0) / 1000 || audio.length / 4000));

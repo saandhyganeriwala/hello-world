@@ -31,12 +31,19 @@ billing.post("/workspaces/:id/billing/order", async (c) => {
   const user = c.get("user"), id = c.req.param("id")!;
   if (!(await getMembership(user.id, id))) return c.json({ error: "Workspace not found." }, 404);
   if (!env.paymentsReady) return c.json({ error: "Payments aren't set up yet. Please try again later." }, 503);
-  const amount = Math.round(env.proPriceInr * 100); // paise
+  // India pays in rupees, everyone else in dollars. The country comes from the CDN when there is one
+  // (Cloudflare's cf-ipcountry), otherwise from the browser's own guess (its time zone).
+  const country = (c.req.header("cf-ipcountry") || c.req.header("x-vercel-ip-country") || "").toUpperCase();
+  const region = String((await body(c)).region || "").toUpperCase();
+  const india = country ? country === "IN" : region !== "INTL";
+  if (!india && !env.razorpayInternational) return c.json({ error: "Payments from outside India open soon." }, 503);
+  const currency = india ? "INR" : "USD";
+  const amount = Math.round((india ? env.proPriceInr : env.proPriceUsd) * 100); // paise / cents
   const res = await fetch(`${env.razorpayBaseUrl}/orders`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Basic " + Buffer.from(`${env.razorpayKeyId}:${env.razorpayKeySecret}`).toString("base64") },
     body: JSON.stringify({
-      amount, currency: "INR", receipt: `ws_${id.slice(0, 8)}_${Date.now().toString(36)}`.slice(0, 40),
+      amount, currency, receipt: `ws_${id.slice(0, 8)}_${Date.now().toString(36)}`.slice(0, 40),
       notes: { workspace_id: id, user_id: user.id, plan: "pro" },
     }),
   }).catch((e) => { console.error("[billing] order request failed", e); return null; });
@@ -45,9 +52,9 @@ billing.post("/workspaces/:id/billing/order", async (c) => {
     console.error("[billing] order failed", res?.status, JSON.stringify(data).slice(0, 300));
     return c.json({ error: "Couldn't start the payment. Please try again." }, 502);
   }
-  await getDb().insert(payments).values({ workspaceId: id, userId: user.id, orderId: data.id, amount, currency: "INR" });
+  await getDb().insert(payments).values({ workspaceId: id, userId: user.id, orderId: data.id, amount, currency });
   return c.json({
-    keyId: env.razorpayKeyId, orderId: data.id, amount, currency: "INR",
+    keyId: env.razorpayKeyId, orderId: data.id, amount, currency,
     name: "CRUD.chat", description: `Pro · ${env.proDays} days · up to ${env.proMembers} people`,
     prefill: { name: user.name || "", email: user.email || "", contact: user.phone || "" },
   });

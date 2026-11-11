@@ -70,9 +70,10 @@ export const env = {
   // Every Claude call is priced from its token counts (USD) and converted to rupees.
   usdInr: num(process.env.USD_INR, 88),
   actionInr: num(process.env.ACTION_INR, 0.45),               // typical cost of one AI action, for "≈ N actions" (from real usage)
-  freeCreditInr: num(process.env.FREE_CREDIT_INR, 20),        // free AI credit per person (≈ 40 actions)
+  freeActions: num(process.env.FREE_ACTIONS, 10),             // free AI actions per person
   freeMembers: num(process.env.FREE_MEMBERS, 3),
-  proPriceInr: num(process.env.PRO_PRICE_INR, 999),           // per 30 days
+  proPriceInr: num(process.env.PRO_PRICE_INR, 999),           // per 30 days, in India
+  proPriceUsd: num(process.env.PRO_PRICE_USD, 12),            // per 30 days, everywhere else
   proDays: num(process.env.PRO_DAYS, 30),
   proMembers: num(process.env.PRO_MEMBERS, 10),
   proMonthlyAiInr: num(process.env.PRO_MONTHLY_AI_INR, 450),  // fair-usage AI budget per 30 days (≈ 1,000 actions)
@@ -91,6 +92,8 @@ export const env = {
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
   razorpayBaseUrl: (process.env.RAZORPAY_BASE_URL || "https://api.razorpay.com/v1").replace(/\/$/, ""),
   get paymentsReady() { return !!(this.razorpayKeyId && this.razorpayKeySecret); },
+  // USD orders need International Payments (and USD) enabled on the Razorpay account.
+  razorpayInternational: bool(process.env.RAZORPAY_INTERNATIONAL, false),
 };
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";

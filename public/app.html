@@ -1563,23 +1563,27 @@ function sheetViewClick(e){
 
 /* ---------------- Plan & usage ---------------- */
 function bill(){ return ws().billing||null; }
-function rupees(n){ return '₹'+(Math.round(n*100)/100).toLocaleString('en-IN',{maximumFractionDigits:n<10?2:0}); }
+// India sees rupees; everyone else dollars. The time zone is a good, private guess at the country.
+const IN_INDIA=(()=>{ try{ const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''; if(tz) return /^Asia\/(Kolkata|Calcutta)$/.test(tz); }catch(e){} return /-IN\b/.test(navigator.language||''); })();
+function price(b){ return IN_INDIA?'₹'+Number(b.priceInr).toLocaleString('en-IN'):'$'+b.priceUsd; }
+function canPay(b){ return IN_INDIA?b.paymentsReady:b.usdPaymentsReady; }
+function n(x){ return Number(x).toLocaleString(IN_INDIA?'en-IN':undefined); }
 function planLine(){ const b=bill(); if(!b) return '';
-  return b.plan==='pro'?'Pro · until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'Free · '+rupees(b.leftInr)+' of '+rupees(b.limitInr)+' AI left'; }
+  return b.plan==='pro'?'Pro · until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'Free · '+b.actionsLeft+' of '+b.actionsLimit+' AI actions left'; }
 function planSheet(){
   const b=bill(); if(!b){ toast('Loading…'); return; }
-  const pct=Math.min(100,b.limitInr?b.usedInr/b.limitInr*100:0), pro=b.plan==='pro';
+  const pct=Math.min(100,b.actionsLimit?b.actionsUsed/b.actionsLimit*100:0), pro=b.plan==='pro';
   let h='<h3>Plan & usage</h3><div class="plan-now"><div class="pn-top"><span class="pn-badge'+(pro?' pro':'')+'">'+(pro?'Pro':'Free')+'</span>'+
     (pro?'<span class="pn-until">Active until '+new Date(b.planUntil).toLocaleDateString(undefined,{day:'numeric',month:'long'})+'</span>':'')+'</div>'+
     '<div class="meter"><i style="width:'+pct+'%" class="'+(pct>=100?'full':pct>80?'warn':'')+'"></i></div>'+
-    '<div class="pn-stats"><span><b>'+rupees(b.usedInr)+'</b> of '+rupees(b.limitInr)+' AI used'+(pro?' this month':'')+'</span><span>≈ '+b.actionsLeft+' actions left</span></div>'+
-    (pro&&b.bonusInr>0?'<div class="pn-stats"><span>Includes '+rupees(b.bonusInr)+' of free credit you carried over</span></div>':'')+
+    '<div class="pn-stats"><span><b>'+(pro?'≈ ':'')+n(b.actionsLeft)+'</b> of '+n(b.actionsLimit)+' AI actions left'+(pro?' this month':'')+'</span></div>'+
+    (pro&&b.bonusActions>0?'<div class="pn-stats"><span>Includes '+b.bonusActions+' free actions you carried over</span></div>':'')+
     '<div class="pn-stats"><span>'+b.members+' of '+b.memberLimit+' people</span>'+(pro&&b.periodEnds?'<span>resets '+new Date(b.periodEnds).toLocaleDateString(undefined,{day:'numeric',month:'short'})+'</span>':'')+'</div></div>';
-  h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+rupees(b.priceInr)+'<small>/ 30 days</small></span></div><ul class="pc-list">'+
+  h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+price(b)+'<small>/ month</small></span></div><ul class="pc-list">'+
     '<li>'+svg('check')+'Up to '+b.proMembers+' people in the workspace</li>'+
-    '<li>'+svg('check')+'About '+b.proActions.toLocaleString('en-IN')+' AI actions a month (fair use)</li>'+
+    '<li>'+svg('check')+'About '+n(b.proActions)+' AI actions a month (fair use)</li>'+
     '<li>'+svg('check')+'Questions, screenshots, imports and custom views</li></ul>'+
-    (b.paymentsReady?'<button class="auth-btn" id="payPro" style="width:100%">'+(pro?'Add 30 days · ':'Upgrade now · ')+rupees(b.priceInr)+'</button><div class="note" style="text-align:center">'+(!pro&&b.leftInr>0?'Upgrade any time — your unused '+rupees(b.leftInr)+' of free credit moves into your first Pro month.':'Secure payment by Razorpay — UPI, cards, netbanking')+'</div>'
+    (canPay(b)?'<button class="auth-btn" id="payPro" style="width:100%">'+(pro?'Add 30 days · ':'Upgrade now · ')+price(b)+'</button><div class="note" style="text-align:center">'+(!pro&&b.actionsLeft>0?'Upgrade any time — your '+b.actionsLeft+' unused free actions move into your first Pro month.':IN_INDIA?'Secure payment — UPI, cards, netbanking':'Secure card payment')+'</div>'
       :'<button class="auth-btn" disabled style="width:100%">Upgrades open soon</button>')+'</div>'+
     '<div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>';
   openSheet(h); }
@@ -1590,7 +1594,7 @@ function loadRazorpay(){ if(window.Razorpay) return Promise.resolve(); if(rzpLoa
 async function payPro(btn){
   const id=ws().id; if(btn){ btn.disabled=true; btn.textContent='Opening payment…'; }
   try{
-    const [o]=await Promise.all([api('POST','/workspaces/'+id+'/billing/order'),loadRazorpay()]);
+    const [o]=await Promise.all([api('POST','/workspaces/'+id+'/billing/order',{region:IN_INDIA?'IN':'INTL'}),loadRazorpay()]);
     const rzp=new window.Razorpay({ key:o.keyId, order_id:o.orderId, amount:o.amount, currency:o.currency, name:o.name, description:o.description,
       prefill:o.prefill, notes:{workspace:ws().name}, theme:{color:'#FFC31F'},
       handler:async(resp)=>{ try{ const out=await api('POST','/workspaces/'+id+'/billing/verify',resp); applyServerState(out.state); closeSheet(); render(); celebrate(); }
@@ -1600,14 +1604,14 @@ async function payPro(btn){
     rzp.open();
   }catch(e){ toast(e.message); if(btn){ btn.disabled=false; planSheet(); } } }
 function celebrate(){ toast('Welcome to Pro! You’re all set.'); const m=$('#mark'); if(m){ m.classList.add('happy'); setTimeout(()=>m.classList.remove('happy'),1600); } buzz(30); }
-// Top-bar chip: the plan at a glance ("Free · ₹14 left", or "Pro"). Tapping it opens Plan & usage.
+// Top-bar chip: the plan at a glance ("Free · 7 left", or "PRO"). Tapping it opens Plan & usage.
 function planChip(){ const el=$('#planChip'), b=bill(); if(!el) return; if(!b){ el.hidden=true; return; } el.hidden=false;
-  const frac=b.limitInr?b.leftInr/b.limitInr:0;
-  el.className='plan-chip'+(b.plan==='pro'?' pro':!b.ok?' out':frac<.25?' low':'');
-  el.innerHTML=b.plan==='pro'?'<b>PRO</b>':!b.ok?'<b>Upgrade</b>':'<span>Free</span><b>'+rupees(b.leftInr)+' left</b>';
-  el.setAttribute('aria-label',b.plan==='pro'?'Pro plan — see usage':'Free plan, '+rupees(b.leftInr)+' of AI left — see plans'); }
+  const frac=b.actionsLimit?b.actionsLeft/b.actionsLimit:0;
+  el.className='plan-chip'+(b.plan==='pro'?' pro':!b.ok?' out':frac<=.3?' low':'');
+  el.innerHTML=b.plan==='pro'?'<b>PRO</b>':!b.ok?'<b>Upgrade</b>':'<span>Free</span><b>'+b.actionsLeft+' left</b>';
+  el.setAttribute('aria-label',b.plan==='pro'?'Pro plan — see usage':'Free plan, '+b.actionsLeft+' AI actions left — see plans'); }
 function creditBar(){ const b=bill(), el=$('#creditBar'); if(!el) return; if(b&&!b.ok){ el.hidden=false;
-  el.innerHTML=(b.plan==='pro'?'This month’s AI allowance is used up':'Your free AI credit is used up')+' · <b>'+(b.plan==='pro'?'See plan':'Upgrade')+'</b>'; } else el.hidden=true; }
+  el.innerHTML=(b.plan==='pro'?'This month’s AI allowance is used up':'Your free AI actions are used up')+' · <b>'+(b.plan==='pro'?'See plan':'Upgrade')+'</b>'; } else el.hidden=true; }
 
 function renderViewArea(name,kind){
   const all=ws().records.filter(r=>r.section===name); const v=activeView(name); const views=viewsFor(name);

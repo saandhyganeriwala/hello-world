@@ -110,18 +110,19 @@ lv = s.sections["Water Intake"].views as any[];
 check("new tracker section gets its view", s.sections["Water Intake"].kind === "tracker" && s.sections["Water Intake"].icon === "drop" && lv[0]?.goal === 3000, s.sections["Water Intake"]);
 check("snapshot lists saved views", (await buildSnapshot(wsId)).sections.some((x) => x.views.some((v) => v.name === "Today")));
 
-// Billing: price a call, per-person free credit, member limits, upgrade early (carry-over), pay twice.
+// Billing: price a call, 10 free actions per person, member limits, upgrade early (carry-over), pay twice.
 const { priceUsd, recordUsage, billingStatus, activatePayment, assertCanAddMember, LimitError } = await import("../src/domain/billing.js");
 const { payments, members } = await import("../src/db/schema.js");
 const call = { label: "understand", model: "claude-sonnet-5-5", input: 700, output: 250, cacheRead: 6300, cacheWrite: 0 };
 check("prices a call from its tokens", Math.abs(priceUsd(call) - (700 * 2 + 250 * 10 + 6300 * 0.1) / 1e6) < 1e-12, priceUsd(call));
 let bs = await billingStatus(wsId);
-check("new workspace is free with ₹20 of AI", bs.plan === "free" && bs.limitInr === 20 && bs.ok && bs.usedInr === 0, bs);
-for (let i = 0; i < 20; i++) await recordUsage(wsId, u.id, call); // 20 × ~₹0.40
+check("new workspace is free with 10 AI actions", bs.plan === "free" && bs.actionsLimit === 10 && bs.actionsLeft === 10 && bs.ok, bs);
+for (let i = 0; i < 6; i++) await recordUsage(wsId, u.id, call);
+await recordUsage(wsId, u.id, { ...call, label: "transcribe" }, 0.001);
+bs = await billingStatus(wsId);
+check("each AI call is one action; transcription isn't", bs.actionsUsed === 6 && bs.actionsLeft === 4, { used: bs.actionsUsed, left: bs.actionsLeft });
 const ws2 = await createWorkspace({ id: u.id, email: u.email, phone: null, name: "Asha" } as any, "Second shop");
-const bs2 = await billingStatus(ws2);
-check("free credit is per person, shared across their workspaces", Math.abs(bs2.usedInr - (await billingStatus(wsId)).usedInr) < 0.01 && bs2.usedInr > 7, bs2.usedInr);
-const leftBefore = (await billingStatus(wsId)).leftInr;
+check("free actions are per person, shared across their workspaces", (await billingStatus(ws2)).actionsLeft === 4);
 for (let i = 0; i < 2; i++) await db.insert(members).values({ workspaceId: wsId, email: `t${i}@x.com`, name: "T" + i, color: "#000" });
 let blocked = false; try { await assertCanAddMember(wsId); } catch (e) { blocked = e instanceof LimitError; }
 check("free plan stops at 3 people", blocked);
@@ -129,11 +130,12 @@ await db.insert(payments).values({ workspaceId: wsId, userId: u.id, orderId: "or
 const p1 = await activatePayment("order_test_1", "pay_1"), p2 = await activatePayment("order_test_1", "pay_1");
 bs = await billingStatus(wsId);
 check("payment activates Pro once (idempotent)", p1.ok && !(p1 as any).already && (p2 as any).already && bs.plan === "pro", { p1, p2, plan: bs.plan });
-check("upgrading early carries unused free credit into the first month", Math.abs(bs.bonusInr - leftBefore) < 0.02 && Math.abs(bs.limitInr - (450 + leftBefore)) < 0.02, { bonus: bs.bonusInr, left: leftBefore, limit: bs.limitInr });
-check("…and that free credit is used up (no double counting)", !(await billingStatus(ws2)).ok);
-check("Pro: fresh budget, 10 people, ~30 days", bs.ok && bs.usedInr === 0 && bs.memberLimit === 10 && Math.round((bs.planUntil! - Date.now()) / 864e5) === 30, bs);
-await recordUsage(wsId, u.id, call);
-check("Pro usage counts against the Pro budget, not free credit", (await billingStatus(wsId)).usedInr > 0);
+check("upgrading early carries the 4 unused free actions into the first month", bs.bonusActions === 4 && bs.actionsLimit === 1000 + 4, { bonus: bs.bonusActions, limit: bs.actionsLimit });
+check("…and those free actions are used up (no double counting)", !(await billingStatus(ws2)).ok);
+check("Pro: ~1,000 actions, 10 people, ~30 days", bs.ok && bs.actionsUsed === 0 && bs.memberLimit === 10 && Math.round((bs.planUntil! - Date.now()) / 864e5) === 30, bs);
+for (let i = 0; i < 5; i++) await recordUsage(wsId, u.id, call);
+const after = await billingStatus(wsId);
+check("Pro usage comes out of the Pro allowance", after.actionsLeft < bs.actionsLeft && after.usedInr > 0, { before: bs.actionsLeft, after: after.actionsLeft });
 await db.insert(payments).values({ workspaceId: wsId, userId: u.id, orderId: "order_test_2", amount: 99900 });
 await activatePayment("order_test_2", "pay_2");
 bs = await billingStatus(wsId);

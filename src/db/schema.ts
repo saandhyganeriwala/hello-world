@@ -16,7 +16,8 @@ export const users = pgTable("users", {
   phone: text("phone").unique(),
   name: text("name"),
   // Free AI credit is per person (spent across all the free workspaces they own), not per workspace.
-  freeSpentInr: doublePrecision("free_spent_inr").notNull().default(0),
+  freeSpentInr: doublePrecision("free_spent_inr").notNull().default(0),   // cost, for analytics
+  freeActionsUsed: integer("free_actions_used").notNull().default(0),     // what the free limit counts
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
