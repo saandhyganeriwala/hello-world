@@ -10,6 +10,7 @@ import { api } from "./routes/api.js";
 import { billing } from "./routes/billing.js";
 import { admin } from "./routes/admin.js";
 import { seo } from "./routes/seo.js";
+import { iap } from "./routes/iap.js";
 
 assertProdConfig();
 await initDb();
@@ -23,6 +24,7 @@ const gzip = compress();
 app.use("*", (c, next) => (c.req.path.startsWith("/api/") ? next() : gzip(c, next)));
 
 app.route("/api", admin);
+app.route("/api", iap);
 app.route("/api", billing);
 app.route("/api", api);
 const notFoundPage = () => { try { return fs.readFileSync("./public/404.html", "utf8"); } catch { return "Not found"; } };

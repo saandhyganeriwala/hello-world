@@ -23,6 +23,7 @@
   "homepage": "https://github.com/saandhyganeriwala/hello-world#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "@apple/app-store-server-library": "^3.1.0",
     "@electric-sql/pglite": "^0.3.16",
     "@hono/node-server": "^1.19.18",
     "drizzle-orm": "^0.44.7",

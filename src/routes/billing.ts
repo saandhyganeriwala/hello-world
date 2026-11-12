@@ -126,6 +126,9 @@ billing.post("/workspaces/:id/billing/cancel", async (c) => {
   if (sub && sub.userId !== user.id && w.owner !== user.id && m.role !== "owner") {
     return c.json({ error: "Only the person who subscribed, or the workspace owner, can cancel." }, 403);
   }
+  if (sub && sub.provider !== "razorpay") {
+    return c.json({ error: `This subscription is billed through ${sub.provider === "apple" ? "the App Store" : "Google Play"} — cancel it there.` }, 400);
+  }
   if (sub && ["cancelling", "cancelled", "completed", "halted"].includes(sub.status)) return c.json({ state: await loadState(id, user.id) });
   // Stop at the end of the period already paid for — no refunds for a period that has started.
   const out = await rzp("POST", `/subscriptions/${encodeURIComponent(w.subId)}/cancel`, { cancel_at_cycle_end: 1 });

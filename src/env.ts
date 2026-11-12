@@ -102,6 +102,16 @@ export const env = {
   // Optional: use plans you created in the Razorpay dashboard. Otherwise they're created on first use.
   razorpayPlanInr: process.env.RAZORPAY_PLAN_ID_INR || "",
   razorpayPlanUsd: process.env.RAZORPAY_PLAN_ID_USD || "",
+  // ---- In-app purchases (App Store / Google Play), see src/domain/iap.ts and mobile/README.md ----
+  iapProductId: process.env.IAP_PRODUCT_ID || "chat.crud.pro.monthly",
+  appleBundleId: process.env.APPLE_BUNDLE_ID || "chat.crud.app",
+  appleAppId: Number(process.env.APPLE_APP_ID || 0) || undefined,            // numeric Apple ID of the app (App Store Connect → App Information)
+  googlePlayPackage: process.env.GOOGLE_PLAY_PACKAGE || "chat.crud.app",
+  googlePlayServiceAccount: process.env.GOOGLE_PLAY_SERVICE_ACCOUNT || "",    // the service account's JSON key, pasted as one line
+  googlePlayApiBase: (process.env.GOOGLE_PLAY_API_BASE || "https://androidpublisher.googleapis.com").replace(/\/$/, ""),
+  googleRtdnToken: process.env.GOOGLE_RTDN_TOKEN || "",                       // secret in the Pub/Sub push URL (?token=…)
+  // Local tests only: accept unsigned App Store payloads. Ignored in production.
+  get iapFakeApple() { return !isProd && bool(process.env.IAP_FAKE_APPLE, false); },
   // USD orders need International Payments (and USD) enabled on the Razorpay account.
   razorpayInternational: bool(process.env.RAZORPAY_INTERNATIONAL, false),
 };

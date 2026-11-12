@@ -188,7 +188,8 @@ static files in `public/`, linked from the landing page footer.
 
 iOS and Android apps live in `mobile/` (a Capacitor 8 shell around crud.chat/app). Builds, store setup and
 release steps are in [mobile/README.md](mobile/README.md). The website is also installable (manifest, icons and an
-offline page via `public/sw.js`). Inside the apps, purchase screens are hidden (store billing rules);
+offline page via `public/sw.js`). Inside the apps Pro is bought through the App Store / Google Play
+(`src/domain/iap.ts`, verified server-side, renewals via store notifications); Razorpay stays on the web.
 Delete account (menu) and `/delete-account` meet the stores' deletion rules; `REVIEW_LOGIN` gives reviewers a login.
 
 ## SEO & blog

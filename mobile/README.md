@@ -9,9 +9,9 @@ What the shell adds on top of the website:
 - native permission prompts for the microphone (voice notes), camera and photos (screenshots);
 - haptics, and an Android back button that closes sheets first;
 - invite links (`crud.chat/app/...`) that open in the app, once the app-link settings below are set;
-- **no purchase screens.** Apple and Google require their own billing for subscriptions sold inside an app, so
-  the app shows plan and usage but never prices, Subscribe or Razorpay. People who subscribe on the website get
-  Pro in the app too.
+- **in-app purchases** of Pro through the App Store / Google Play (StoreKit 2 in `ios/App/App/StorePlugin.swift`,
+  Play Billing in `android/.../StorePlugin.java`). Razorpay never appears inside the apps. A workspace is Pro
+  however it was paid for (website, App Store or Google Play).
 
 App ID: `chat.crud.app` · Name: **CRUD.chat**
 
@@ -75,6 +75,49 @@ After changing the icon: put new 1024px images in `assets/`, then run `npm run a
    - Guideline 4.2 (minimum functionality): mention in the review notes that the app records voice notes with
      the microphone, reads photos and screenshots with the camera and photo library, and works as a shared team
      database with live sync.
+
+## In-app purchases (Pro through the stores)
+
+How it works: the app buys `chat.crud.pro.monthly` tagged with the workspace id. Our server checks the purchase
+with Apple or Google and switches that workspace to Pro (the same records as Razorpay). Renewals, cancellations,
+billing problems and refunds arrive as server notifications. Code: `src/domain/iap.ts`, `src/routes/iap.ts`.
+
+**App Store Connect**
+1. **Business → Agreements**: accept the *Paid Apps Agreement* and fill in bank and tax details (W-8BEN as a
+   non-US individual). Purchases don't work, even in testing, until it's active.
+2. Apply for the **App Store Small Business Program** (15% instead of 30%).
+3. Your app → **Monetization → Subscriptions**: create a subscription group ("CRUD.chat Pro"), then a subscription
+   with product ID **`chat.crud.pro.monthly`**, duration 1 month, price ₹499 (Apple sets other countries' prices;
+   adjust if you like). Add its display name and description, and a review screenshot of the subscribe screen.
+4. **App Information**: copy the *Apple ID* (a number) → set `APPLE_APP_ID` on Railway.
+5. **App Store Server Notifications** (App Information): Production and Sandbox URLs are both
+   `https://crud.chat/api/iap/apple/notifications`, Version 2.
+6. Testing: **Users and Access → Sandbox → Test accounts**, then sign in with that account on the iPhone under
+   Settings → App Store → Sandbox Account. TestFlight builds use the sandbox automatically. Sandbox months last minutes.
+7. When submitting the app version, attach the subscription to it ("In-App Purchases and Subscriptions").
+
+**Google Play Console**
+1. **Monetize → Payments profile**: set it up with your bank account.
+2. **Monetize → Products → Subscriptions**: create **`chat.crud.pro.monthly`**, add a base plan (ID `monthly`,
+   auto-renewing, 1 month, ₹499) and **activate** it. Products can only be created after you upload a build that
+   includes billing (the bundle from the workflow does).
+3. **Google Cloud** (console.cloud.google.com), in one project:
+   - enable the **Google Play Android Developer API**;
+   - create a **service account** and a **JSON key** → paste the whole JSON as one line into
+     `GOOGLE_PLAY_SERVICE_ACCOUNT` on Railway;
+   - in Play Console → **Users and permissions**, invite the service account's email with *View financial data*
+     and *Manage orders and subscriptions* (it can take up to a day to start working);
+   - **Pub/Sub**: create a topic (e.g. `play-billing`) and grant `google-play-developer-notifications@system.gserviceaccount.com`
+     the *Pub/Sub Publisher* role on it. Add a **push subscription** to the topic with the endpoint
+     `https://crud.chat/api/iap/google/notifications?token=YOUR_SECRET`, and set `GOOGLE_RTDN_TOKEN=YOUR_SECRET` on Railway.
+4. Play Console → **Monetization setup**: enter the topic name (`projects/<project-id>/topics/play-billing`) and
+   send a test notification.
+5. Testing: **Settings → License testing**, add your Google account. Test purchases aren't charged and renew every few minutes.
+
+**What people see in the app**: the store price, Subscribe, the renewal terms Apple requires, Terms and Privacy
+links, and Restore purchases. Once subscribed: *Manage subscription*, which opens the store's own screen. A
+workspace that pays on the website shows as Pro with no purchase buttons. Deleting an account doesn't stop store
+billing (the delete screen says so), because only the person can cancel it in their store account.
 
 ## Versions
 

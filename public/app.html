@@ -1590,12 +1590,15 @@ function planSheet(){
     '<div class="pn-stats"><span><b>'+(pro?'≈ ':'')+n(b.actionsLeft)+'</b> of '+n(b.actionsLimit)+' AI actions left'+(pro?' this month':'')+'</span></div>'+
     (pro&&b.bonusActions>0?'<div class="pn-stats"><span>Includes '+b.bonusActions+' free actions you carried over</span></div>':'')+
     '<div class="pn-stats"><span>'+b.members+' of '+b.memberLimit+' people</span>'+(pro&&b.periodEnds&&!b.renewsAt?'<span>resets '+dShort(b.periodEnds)+'</span>':'')+'</div></div>';
-  if(NATIVE){ h+='<div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>'; openSheet(h); return; }
+  if(NATIVE){ storePlanCard(b,pro,st,h); return; }
   h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+price(b)+'<small>/ month</small></span></div><ul class="pc-list">'+
     '<li>'+svg('check')+'Up to '+b.proMembers+' people in the workspace</li>'+
     '<li>'+svg('check')+'About '+n(b.proActions)+' AI actions a month (fair use)</li>'+
     '<li>'+svg('check')+'Questions, screenshots, imports and custom views</li></ul>';
-  if(subscribed){
+  const prov=b.subscription&&b.subscription.provider;
+  if(subscribed&&prov&&prov!=='razorpay'){
+    h+='<div class="note" style="text-align:center">'+(st==='cancelling'?'Won’t renew — Pro stays on until '+dLong(b.periodEnds||b.planUntil)+'. ':'')+'Billed through '+(prov==='apple'?'the App Store':'Google Play')+'. Manage or cancel it in your '+(prov==='apple'?'Apple ID':'Google Play')+' subscription settings.</div>';
+  } else if(subscribed){
     h+=st==='cancelling'
       ?'<div class="note" style="text-align:center">Your subscription won’t renew. Pro stays on until '+dLong(b.periodEnds||b.planUntil)+', then this workspace moves to the free plan. Nothing is deleted.</div>'
       :'<div class="note" style="text-align:center">Billed '+price(b)+' every month, automatically. Cancel any time — Pro stays on until the end of the month you’ve paid for.</div>'+
@@ -1614,6 +1617,67 @@ async function cancelSub(btn){
   cancelArmed=false; btn.disabled=true; btn.textContent='Cancelling…';
   try{ const out=await api('POST','/workspaces/'+ws().id+'/billing/cancel',{}); applyServerState(out.state); render(); planSheet(); toast('Cancelled — Pro stays on until the end of this month.'); }
   catch(e){ toast(e.message); btn.disabled=false; btn.classList.remove('armed'); btn.textContent='Cancel subscription'; } }
+/* ---- In-app purchases (inside the iOS / Android apps) ---- */
+const iapProduct=()=>((state.config||{}).plans||{}).iapProductId||'chat.crud.pro.monthly';
+const storeName=()=>IOS_APP?'App Store':'Google Play';
+let storeProduct=null, storeProductTried=false;
+async function loadStoreProduct(){ if(storeProduct||!NATIVE) return storeProduct;
+  try{ const r=await nativeCall('Store','getProducts',{ids:[iapProduct()]}); storeProduct=(r.products||[])[0]||null; }catch(e){ storeProduct=null; }
+  storeProductTried=true; return storeProduct; }
+function storePlanCard(b,pro,st,h){
+  const sub=b.subscription, prov=sub&&sub.provider, subscribed=pro&&sub&&['active','pending','cancelling'].includes(sub.status), sp=storeProduct;
+  const mine=prov==='apple'&&IOS_APP||prov==='google'&&ANDROID_APP;
+  h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+(sp?esc(sp.price)+'<small>/ month</small>':'')+'</span></div><ul class="pc-list">'+
+    '<li>'+svg('check')+'Up to '+b.proMembers+' people in the workspace</li>'+
+    '<li>'+svg('check')+'About '+n(b.proActions)+' AI actions a month (fair use)</li>'+
+    '<li>'+svg('check')+'Questions, screenshots, imports and custom views</li></ul>';
+  if(subscribed&&mine){
+    h+='<div class="note" style="text-align:center">'+(st==='cancelling'?'Won’t renew — Pro stays on until '+dLong(b.periodEnds||b.planUntil)+'.':'Billed through '+(IOS_APP?'the App Store':'Google Play')+' every month.')+'</div>'+
+      '<button class="btn" id="storeManage" style="width:100%;justify-content:center;margin-top:8px">Manage subscription</button>';
+  } else if(subscribed||pro){
+    h+='<div class="note" style="text-align:center">This workspace is on Pro'+(b.periodEnds?' until '+dLong(b.periodEnds):'')+'.</div>';
+  } else {
+    h+='<button class="auth-btn" id="storeBuy" style="width:100%"'+(storeProductTried&&!sp?' disabled':'')+'>'+(sp?'Subscribe · '+esc(sp.price)+' / month':storeProductTried?'Not available right now':'Subscribe')+'</button>'+
+      '<div class="note" style="text-align:center">'+(b.actionsLeft>0?'Your '+b.actionsLeft+' unused free actions move into your first month. ':'')+
+      'Payment is charged to your '+(IOS_APP?'Apple ID':'Google Play account')+'. The subscription renews every month unless cancelled at least 24 hours before the end of the current period; manage or cancel it in your '+(IOS_APP?'Apple ID':'Google Play')+' settings. '+
+      '<a href="https://crud.chat/terms" target="_blank" rel="noopener">Terms of Use</a> · <a href="https://crud.chat/privacy" target="_blank" rel="noopener">Privacy Policy</a></div>'+
+      '<button class="btn" id="storeRestore" style="width:100%;justify-content:center;margin-top:8px">Restore purchases</button>';
+  }
+  h+='</div><div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>';
+  openSheet(h);
+  if(!storeProduct&&!storeProductTried) loadStoreProduct().then(()=>{ if(!$('#sheetScrim').hidden&&$('#storeBuy')) planSheet(); });
+}
+// Sends one store purchase to our server (which checks it with Apple / Google); then lets the store forget it.
+async function sendPurchase(p){
+  if(IOS_APP){ const out=await api('POST','/iap/apple',{signedTransaction:p.jws}); nativeCall('Store','finish',{transactionId:p.transactionId}).catch(()=>{}); return out; }
+  return api('POST','/iap/google',{purchaseToken:p.purchaseToken});
+}
+function afterPurchase(out){ if(out&&out.state&&out.workspaceId===state.current) applyServerState(out.state); }
+async function storeBuy(btn){
+  btn.disabled=true; btn.textContent='Opening '+storeName()+'…';
+  try{
+    const r=await nativeCall('Store','purchase',{productId:iapProduct(),accountToken:ws().id});
+    if(r.status==='cancelled'){ planSheet(); return; }
+    if(r.status==='pending'){ toast('Payment pending — Pro turns on as soon as it completes.'); planSheet(); return; }
+    if(r.status==='owned'){ await storeRestore(null); return; }
+    btn.textContent='Activating Pro…';
+    afterPurchase(await sendPurchase(r)); closeSheet(); render(); celebrate();
+  }catch(e){ toast(e.message||'The purchase didn’t go through.'); planSheet(); } }
+async function storeRestore(btn){
+  if(btn){ btn.disabled=true; btn.textContent='Restoring…'; }
+  try{
+    const r=await nativeCall('Store','restore',{}), list=IOS_APP?(r.transactions||[]):(r.purchases||[]);
+    let ok=0; for(const p of list){ try{ afterPurchase(await sendPurchase(p)); ok++; }catch(e){} }
+    render(); planSheet(); toast(ok?'Purchases restored.':'No CRUD.chat subscription found on this '+(IOS_APP?'Apple ID':'Google account')+'.');
+  }catch(e){ toast(e.message); planSheet(); } }
+// Purchases that completed while the app was closed (or whose activation didn't finish) are sent on launch.
+let storeSyncing=false;
+async function storeSyncPending(){
+  if(!NATIVE||storeSyncing||!state.current) return; storeSyncing=true;
+  try{ const r=await nativeCall('Store','unfinished',{}), list=IOS_APP?(r.transactions||[]):(r.purchases||[]).filter(p=>!p.acknowledged);
+    for(const p of list){ try{ afterPurchase(await sendPurchase(p)); render(); }catch(e){} } }catch(e){}
+  storeSyncing=false; }
+setTimeout(()=>{ if(NATIVE) document.addEventListener('visibilitychange',()=>{ if(!document.hidden) storeSyncPending(); }); },0);
 let rzpLoading=null;
 function loadRazorpay(){ if(window.Razorpay) return Promise.resolve(); if(rzpLoading) return rzpLoading;
   rzpLoading=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://checkout.razorpay.com/v1/checkout.js'; s.onload=res; s.onerror=()=>{ rzpLoading=null; rej(new Error('Couldn’t load the payment window. Check your connection.')); }; document.head.appendChild(s); });
@@ -1921,18 +1985,19 @@ function countUp(){
 }
 // Inside the iOS / Android apps (Capacitor shell, see mobile/). Purchases aren't offered there:
 // the stores require their own billing for in-app subscriptions, so plans are managed on the web.
-const NATIVE=/CRUDchatApp/.test(navigator.userAgent);
-const CapPlugins=()=>(window.Capacitor&&window.Capacitor.Plugins)||{};
-function buzz(ms){ try{ const H=CapPlugins().Haptics; if(NATIVE&&H){ H.impact({style:ms>20?'MEDIUM':'LIGHT'}); return; } if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+const NATIVE=/CRUDchatApp/.test(navigator.userAgent), IOS_APP=/CRUDchatApp iOS/.test(navigator.userAgent), ANDROID_APP=/CRUDchatApp Android/.test(navigator.userAgent);
+// Calls a native plugin from this page (Capacitor's bridge is injected when the page runs inside the app).
+function nativeCall(plugin,method,opts){ const C=window.Capacitor; if(!NATIVE||!C||typeof C.nativePromise!=='function') return Promise.reject(new Error('Please update the CRUD.chat app.')); return C.nativePromise(plugin,method,opts||{}); }
+function buzz(ms){ try{ if(NATIVE&&window.Capacitor&&window.Capacitor.nativePromise){ nativeCall('Haptics','impact',{style:ms>20?'MEDIUM':'LIGHT'}).catch(()=>{}); return; } if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
 if(NATIVE) document.documentElement.classList.add('native');
 // Android back button: close whatever is on top before leaving the app.
-setTimeout(()=>{ try{ const A=CapPlugins().App; if(!A) return;
-  A.addListener('backButton',()=>{
+if(ANDROID_APP) setTimeout(()=>{ try{ const C=window.Capacitor; if(!C||typeof C.nativeCallback!=='function') return;
+  C.nativeCallback('App','addListener',{eventName:'backButton'},()=>{
     if(!$('#sheetScrim').hidden){ closeSheet(); return; }
     if(!$('#searchScrim').hidden){ closeSearch(); return; }
     if($('#chat').classList.contains('expanded')){ collapseChat(); return; }
     if(view.mode==='detail'){ backFromDetail(); return; }
-    A.minimizeApp?A.minimizeApp():A.exitApp(); }); }catch(e){} },0);
+    nativeCall('App','minimizeApp').catch(()=>nativeCall('App','exitApp').catch(()=>{})); }); }catch(e){} },0);
 function summaryHead(name,recs,kind){
   let metrics=[];
   if(kind==='orders'){ const t=recs.reduce((s,r)=>s+amtNum(r),0); metrics=[['orders',recs.length]]; if(t)metrics.push(['value','₹'+inr(t)]); }
@@ -2740,6 +2805,9 @@ async function armDelete(btn){
 function sheetClick(e){
   if(e.target.closest('#payPro')){ payPro(e.target.closest('#payPro')); return; }
   if(e.target.closest('#cancelSub')){ cancelSub(e.target.closest('#cancelSub')); return; }
+  if(e.target.closest('#storeBuy')){ storeBuy(e.target.closest('#storeBuy')); return; }
+  if(e.target.closest('#storeRestore')){ storeRestore(e.target.closest('#storeRestore')); return; }
+  if(e.target.closest('#storeManage')){ nativeCall('Store','manage',{productId:iapProduct()}).catch(()=>{}); return; }
   if(e.target.closest('#mPlan')){ planSheet(); return; }
   if(sheetViewClick(e)) return;
   if(customizeClick(e)) return;
@@ -2933,7 +3001,7 @@ async function loadApp(){
     const join=pendingJoin();
     if(join){ if(b.current){ state.current=b.current; } showAuth('loading'); if(await lookupJoin(join,true)) return; }
     if(!b.current){ showAuth('setup'); return; }
-    hideAuth(); enterWorkspace(b.current,b.state);
+    hideAuth(); enterWorkspace(b.current,b.state); setTimeout(storeSyncPending,1500);
   }catch(e){ if(e.status!==401){ showAuth('start'); authError(e.message); } }
 }
 // Delete account: explain what happens, then ask the person to type DELETE.
@@ -2942,6 +3010,7 @@ function deleteSheet(){
     'This permanently removes your login and your access to every workspace.<br><br>'+
     '• Workspaces you share with teammates stay with them (the longest-standing teammate becomes the owner).<br>'+
     '• Workspaces only you are in are deleted with all their records, and any subscription on them is cancelled.<br>'+
+    '• Subscriptions bought through the App Store or Google Play aren’t stopped by deleting your account — cancel them in your store’s subscription settings.<br>'+
     '• This can’t be undone. Export anything you need first (each section can be exported to CSV).</div>'+
     '<label class="note" for="delConfirm" style="display:block;margin-top:10px">Type <b>DELETE</b> to confirm</label>'+
     '<div class="inline" style="margin:6px 0 12px"><input id="delConfirm" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DELETE"></div>'+

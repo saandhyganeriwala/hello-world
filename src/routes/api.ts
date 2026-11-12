@@ -34,7 +34,7 @@ api.get("/health", (c) => c.json({ ok: true }));
 api.get("/config", (c) => c.json({
   otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod, transcribe: !!transcribeProvider(),
   plans: { freeActions: env.freeActions, freeMembers: env.freeMembers, proPriceInr: env.proPriceInr, proPriceUsd: env.proPriceUsd, proDays: env.proDays,
-    proMembers: env.proMembers, proActions: proActions(), paymentsReady: env.paymentsReady },
+    proMembers: env.proMembers, proActions: proActions(), paymentsReady: env.paymentsReady, iapProductId: env.iapProductId },
 }));
 
 // The login box sends { identifier } — an email or a phone number, per LOGIN_METHOD.

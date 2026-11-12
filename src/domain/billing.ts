@@ -59,7 +59,7 @@ export type Billing = {
   /** Pro only: next automatic charge (null once cancelled). */
   renewsAt: number | null;
   /** The workspace's subscription, if it has one: active, pending (a renewal is being retried), cancelling, cancelled, halted. */
-  subscription: { status: string; currency: string; amount: number } | null;
+  subscription: { status: string; currency: string; amount: number; provider: string } | null;
 };
 
 /** Where the workspace stands right now. Everything is shown in actions; Pro is metered in rupees underneath. */
@@ -79,7 +79,7 @@ export async function billingStatus(workspaceId: string): Promise<Billing> {
   };
   if (w?.subId) {
     const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.subscriptionId, w.subId)).limit(1);
-    if (sub) common.subscription = { status: sub.status, currency: sub.currency, amount: sub.amount };
+    if (sub) common.subscription = { status: sub.status, currency: sub.currency, amount: sub.amount, provider: sub.provider };
   }
   if (!pro) {
     let used = 0, usedInr = 0;
@@ -199,12 +199,13 @@ export async function applyCharge(ch: Charge) {
  *  - cancelled / completed: no more charges; Pro ends when the paid period does
  *  - halted / paused: retries ran out (or it was paused); back to free now
  */
-export async function setSubscriptionStatus(subscriptionId: string, status: string) {
+export async function setSubscriptionStatus(subscriptionId: string, status: string, opts: { force?: boolean } = {}) {
   return getDb().transaction(async (tx) => {
     const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.subscriptionId, subscriptionId)).limit(1).for("update");
     if (!sub) return { ok: false as const };
     // A scheduled cancellation stays "cancelling" until Razorpay actually cancels it.
-    const next = sub.status === "cancelling" && ["active", "authenticated", "pending"].includes(status) ? "cancelling" : status;
+    // (The App Store and Play can turn auto-renew back on, so they pass force.)
+    const next = !opts.force && sub.status === "cancelling" && ["active", "authenticated", "pending"].includes(status) ? "cancelling" : status;
     await tx.update(subscriptions).set({ status: next, updatedAt: new Date() }).where(eq(subscriptions.id, sub.id));
     const [w] = await tx.select().from(workspaces).where(eq(workspaces.id, sub.workspaceId)).limit(1).for("update");
     if (w?.subscriptionId === subscriptionId && w.planUntil) {

@@ -162,8 +162,11 @@ export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  // Razorpay: sub_…; App Store: apple:<originalTransactionId>; Google Play: google:<purchaseToken>
   subscriptionId: text("subscription_id").notNull().unique(),
-  planId: text("plan_id").notNull(),
+  provider: text("provider").notNull().default("razorpay"), // razorpay | apple | google
+  environment: text("environment"),               // App Store: Production | Sandbox (reviewers buy in Sandbox)
+  planId: text("plan_id").notNull(),              // Razorpay plan id, or the store product id
   amount: integer("amount").notNull(),            // paise / cents per month
   currency: text("currency").notNull().default("INR"),
   status: text("status").notNull().default("created"),

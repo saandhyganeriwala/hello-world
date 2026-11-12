@@ -27,8 +27,9 @@ export async function deleteAccount(userId: string): Promise<DeleteResult> {
         .where(and(eq(members.workspaceId, wsId), isNotNull(members.userId), ne(members.userId, userId)))
         .orderBy(asc(members.createdAt)).limit(1);
       if (!heir) {
-        const subs = await tx.select({ id: subscriptions.subscriptionId, status: subscriptions.status }).from(subscriptions).where(eq(subscriptions.workspaceId, wsId));
-        out.subscriptionsToCancel.push(...subs.filter((s) => ["active", "pending", "authenticated", "created", "cancelling"].includes(s.status)).map((s) => s.id));
+        const subs = await tx.select({ id: subscriptions.subscriptionId, status: subscriptions.status, provider: subscriptions.provider }).from(subscriptions).where(eq(subscriptions.workspaceId, wsId));
+        // App Store / Play subscriptions can only be cancelled by the person in their store account (we say so in the app).
+        out.subscriptionsToCancel.push(...subs.filter((s) => s.provider === "razorpay" && ["active", "pending", "authenticated", "created", "cancelling"].includes(s.status)).map((s) => s.id));
         await tx.delete(workspaces).where(eq(workspaces.id, wsId)); // records, sections, messages, members… cascade
         out.deletedWorkspaces.push(w.name);
         continue;
