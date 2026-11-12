@@ -2293,6 +2293,7 @@ async function resetInvite(){ try{ const out=await api('POST','/workspaces/'+ws(
 function menuSheet(){
   const u=state.user||{}, n=ws().members.length;
   openSheet('<h3>'+esc(ws().name)+'</h3>'+
+    (state.admin?'<a class="row-item" href="/admin" style="text-decoration:none;color:inherit"><span>'+svg('chart')+'</span><span>Analytics<span class="sub">Admin dashboard</span></span></a>':'')+
     '<button class="row-item" id="mPlan"><span>'+svg('spark')+'</span><span>Plan & usage<span class="sub">'+esc(planLine())+'</span></span></button>'+
     '<button class="row-item" id="mTeam"><span>'+svg('people')+'</span><span>Team<span class="sub">'+n+' member'+(n>1?'s':'')+'</span></span></button>'+
     '<button class="row-item" id="mWs"><span>'+svg('swap')+'</span><span>Switch or add workspace</span></button>'+
@@ -2903,7 +2904,7 @@ async function loadApp(){
   let saved=null; try{ saved=localStorage.getItem('crud.ws'); }catch(e){}
   try{
     const b=await api('GET','/bootstrap'+(saved?'?workspace='+encodeURIComponent(saved):''));
-    state.user=b.user; state.list=b.workspaces;
+    state.user=b.user; state.list=b.workspaces; state.admin=!!b.admin;
     if(b.current) applyServerState(b.state);
     if(!b.user.name){ showAuth('name'); return; }
     const join=pendingJoin();
@@ -2935,5 +2936,6 @@ function boot(){
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();
 </script>
+<script>try{navigator.sendBeacon('/api/t',JSON.stringify({p:location.pathname,r:document.referrer,u:new URLSearchParams(location.search).get('utm_source')||''}))}catch(e){}</script>
 </body>
 </html>

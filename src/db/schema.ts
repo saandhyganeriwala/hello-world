@@ -179,3 +179,17 @@ export const razorpayPlans = pgTable("razorpay_plans", {
   planId: text("plan_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
+
+// Website visits, recorded by a small beacon on each page (no cookies). `visitor` is a one-way
+// hash of IP + browser, so people can be counted without storing either. Bots are skipped.
+export const pageViews = pgTable("page_views", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  visitor: text("visitor").notNull(),
+  kind: text("kind").notNull(),                   // landing | app | legal
+  path: text("path").notNull(),
+  referrer: text("referrer"),                     // host of the referring site, if any
+  utmSource: text("utm_source"),
+  country: text("country"),
+  device: text("device"),                         // mobile | desktop
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("page_views_time_idx").on(t.createdAt)]);

@@ -184,6 +184,18 @@ refunds for a started period. Every charge is counted once per payment id. Code:
 **Policy pages** (Razorpay's website checks): `/terms`, `/privacy`, `/refunds`, `/contact`, `/shipping` —
 static files in `public/`, linked from the landing page footer.
 
+## Analytics (admin)
+
+`/admin` is a dashboard for the team running CRUD.chat: visitors, signups, the signup → workspace → AI →
+free limit → subscription funnel, active people, workspaces per person and people per workspace, AI actions
+per person (average, median, 75th/90th/99th percentile), AI cost, subscriptions, MRR, revenue, traffic
+sources (referrers, `?utm_source=` campaigns) and the most active workspaces. Pick 7 / 30 / 90 days or all time.
+
+- Set `ADMIN_EMAILS` (comma-separated login emails) on the server; those people see *Analytics* in the app menu.
+- Visits are counted by a small beacon on every page (`POST /api/t`) without cookies: a one-way hash of IP +
+  browser, bots skipped (`page_views`). Countries need a CDN that sends `cf-ipcountry` (e.g. Cloudflare).
+- Code: `src/domain/analytics.ts`, `src/routes/admin.ts`, `public/admin.html`.
+
 ## Costs
 
 Each Claude call logs one JSON line with its token counts, e.g.

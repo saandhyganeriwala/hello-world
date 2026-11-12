@@ -6,6 +6,7 @@ import { assertProdConfig, env } from "./env.js";
 import { initDb } from "./db/client.js";
 import { api } from "./routes/api.js";
 import { billing } from "./routes/billing.js";
+import { admin } from "./routes/admin.js";
 
 assertProdConfig();
 await initDb();
@@ -14,6 +15,7 @@ const app = new Hono();
 // Razorpay Checkout opens popups for some payment methods (UPI apps, netbanking), so allow them.
 app.use("*", secureHeaders({ crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: false, crossOriginOpenerPolicy: "same-origin-allow-popups" }));
 
+app.route("/api", admin);
 app.route("/api", billing);
 app.route("/api", api);
 app.notFound((c) => (c.req.path.startsWith("/api/") ? c.json({ error: "Not found." }, 404) : c.text("Not found", 404)));
@@ -26,6 +28,7 @@ app.onError((err, c) => {
 app.get("/app", serveStatic({ path: "./public/app.html" }));
 app.get("/app/*", serveStatic({ path: "./public/app.html" }));
 // Policy pages (Razorpay asks for these): /terms, /privacy, /refunds, /contact, /shipping.
+app.get("/admin", serveStatic({ path: "./public/admin.html" }));
 for (const page of ["terms", "privacy", "refunds", "contact", "shipping"]) {
   app.get(`/${page}`, serveStatic({ path: `./public/${page}.html` }));
 }

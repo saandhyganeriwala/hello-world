@@ -5,6 +5,7 @@ import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { members, messages, records, sections, users, workspaces, type Fields } from "../db/schema.js";
 import { env } from "../env.js";
+import { isAdmin } from "./admin.js";
 import { invalidIdentityMessage, normalizeIdentity } from "../lib/identity.js";
 import { OtpError, requestOtp, verifyOtp } from "../auth/otp.js";
 import { OtpSendError } from "../auth/errors.js";
@@ -95,10 +96,11 @@ api.patch("/me", async (c) => {
 api.get("/bootstrap", async (c) => {
   const user = c.get("user");
   const list = await listWorkspaces(user.id);
-  if (!list.length) return c.json({ user, workspaces: [], current: null, state: null });
+  const admin = isAdmin(user.email);
+  if (!list.length) return c.json({ user, admin, workspaces: [], current: null, state: null });
   const wanted = c.req.query("workspace");
   const current = list.find((w) => w.id === wanted)?.id ?? list[0].id;
-  return c.json({ user, workspaces: list, current, state: await loadState(current, user.id) });
+  return c.json({ user, admin, workspaces: list, current, state: await loadState(current, user.id) });
 });
 
 api.post("/workspaces", async (c) => {

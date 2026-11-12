@@ -66,6 +66,9 @@ export const env = {
 
   defaultCountry: (process.env.DEFAULT_COUNTRY || "IN") as any,
 
+  // Who can open the analytics dashboard at /admin (comma-separated login emails).
+  adminEmails: (process.env.ADMIN_EMAILS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+
   // ---- Plans & usage ----
   // Every Claude call is priced from its token counts (USD) and converted to rupees.
   usdInr: num(process.env.USD_INR, 88),

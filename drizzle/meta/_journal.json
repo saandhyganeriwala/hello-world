@@ -50,6 +50,13 @@
       "when": 1794423769926,
       "tag": "0006_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794450885278,
+      "tag": "0007_page_views",
+      "breakpoints": true
     }
   ]
 }
