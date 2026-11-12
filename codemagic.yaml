@@ -1,0 +1,44 @@
+# Codemagic: builds the iOS app in the cloud (no Mac needed) and uploads it to TestFlight.
+# Start a build from codemagic.io → this app → "Start new build" → workflow "iOS → TestFlight".
+# One-time setup is in mobile/README.md → "iOS builds with Codemagic".
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # The App Store Connect API key you add in Codemagic → Team settings → Integrations → Developer Portal.
+      # Rename here if you name the key differently there.
+      app_store_connect: CRUD App Store Connect
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: chat.crud.app
+      vars:
+        XCODE_PROJECT: mobile/ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+        APP_VERSION: "1.0.0"          # the version people see; bump for each App Store release
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Install and sync the Capacitor project
+        script: |
+          cd mobile
+          npm ci
+          npx cap sync ios
+      - name: Use the signing certificate and App Store profile
+        script: xcode-project use-profiles --project "$XCODE_PROJECT"
+      - name: Build the .ipa
+        script: |
+          # Every upload needs a higher build number: use Codemagic's build counter.
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "CURRENT_PROJECT_VERSION=$BUILD_NUMBER MARKETING_VERSION=$APP_VERSION"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

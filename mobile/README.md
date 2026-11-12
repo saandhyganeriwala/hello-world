@@ -60,15 +60,42 @@ After changing the icon: put new 1024px images in `assets/`, then run `npm run a
 6. App links: in Play Console → **App integrity**, copy the *App signing key* SHA-256 fingerprint and set
    `ANDROID_CERT_SHA256` on Railway. https://crud.chat/.well-known/assetlinks.json then serves it.
 
+## iOS builds with Codemagic (no Mac needed)
+
+`codemagic.yaml` (repo root) builds the iOS app on Codemagic's Macs, signs it and uploads it to TestFlight.
+One-time setup:
+1. **Apple Developer** → Certificates, Identifiers & Profiles → **Identifiers → +** → App IDs → App → Bundle ID
+   (explicit) `chat.crud.app`, description "CRUD.chat". Leave the default capabilities (In-App Purchase is included).
+2. **App Store Connect → My Apps → + New App**: iOS, name *CRUD.chat*, bundle ID `chat.crud.app`, SKU `crudchat`.
+3. **App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → +**:
+   name "Codemagic", access **App Manager**. Download the `.p8` file (only possible once) and note the
+   **Issuer ID** and **Key ID**.
+4. **codemagic.io** → sign up with GitHub → **Add application** → GitHub → `hello-world` → choose
+   *codemagic.yaml* as the configuration.
+5. Codemagic → **Team settings → Team integrations → Developer Portal → Connect**: name it exactly
+   `CRUD App Store Connect`, then enter the Issuer ID and Key ID and upload the `.p8`.
+6. Codemagic → **Team settings → codemagic.yaml settings → Code signing identities**:
+   - **iOS certificates → Generate certificate**: type *Apple Distribution*, using the key above. Give it any
+     reference name.
+   - **iOS provisioning profiles → Fetch profiles**. If none is listed: in Apple Developer → **Profiles → +** →
+     *App Store Connect* → App ID `chat.crud.app` → pick the certificate Codemagic just made → name
+     "CRUD App Store" → Generate. Then **Fetch profiles** again and add it.
+7. **Start new build** → branch `crud-chat-backend` → workflow **iOS → TestFlight**. About 15 minutes later the build
+   appears in App Store Connect → TestFlight (after Apple's processing, usually 15–30 minutes).
+
+For each App Store release, bump `APP_VERSION` in `codemagic.yaml`. Build numbers count up by themselves.
+Invite links that open the app (Associated Domains) are a later step: enable the capability on the App ID, then
+ask for the entitlement to be added to the project.
+
 ## Apple App Store
 
 1. Enrol in the Apple Developer Program at developer.apple.com (US$99 a year). Individuals can enrol right away.
    A company needs a D-U-N-S number.
-2. On a Mac: `npx cap open ios` → select the **App** target → **Signing & Capabilities** → choose your Team
-   (bundle ID `chat.crud.app`) → **+ Capability → Associated Domains** → add `applinks:crud.chat`.
+2. Build and upload with Codemagic (section above), or on a Mac: `npx cap open ios` → **App** target →
+   **Signing & Capabilities** → choose your Team → Product → Archive → Distribute App.
 3. Set `APPLE_TEAM_ID` on Railway (Membership page of your developer account), so
    https://crud.chat/.well-known/apple-app-site-association lists the app.
-4. **Product → Archive → Distribute App → App Store Connect.** Test it with TestFlight, then submit for review.
+4. Test it with TestFlight, then submit for review.
 5. In App Store Connect: fill in **App Privacy** (same answers as Play's data safety), the category
    (Business / Productivity), screenshots (6.9" iPhone), the support URL, the privacy policy URL, and the
    review notes with the reviewer login.
