@@ -6,6 +6,8 @@ import { getDb } from "../db/client.js";
 import { members, messages, records, sections, users, workspaces, type Fields } from "../db/schema.js";
 import { env } from "../env.js";
 import { isAdmin } from "./admin.js";
+import { rzp } from "./billing.js";
+import { deleteAccount } from "../domain/account.js";
 import { invalidIdentityMessage, normalizeIdentity } from "../lib/identity.js";
 import { OtpError, requestOtp, verifyOtp } from "../auth/otp.js";
 import { OtpSendError } from "../auth/errors.js";
@@ -80,6 +82,21 @@ api.use("/records/*", requireUser);
 api.use("/invites/*", requireUser);
 
 api.get("/me", (c) => c.json({ user: c.get("user") }));
+// Delete my account (App Store / Play requirement). Body must confirm with { confirm: "DELETE" }.
+api.delete("/me", async (c) => {
+  const user = c.get("user");
+  if (String((await body(c)).confirm || "") !== "DELETE") return c.json({ error: "Please confirm to delete your account." }, 400);
+  const before = await getDb().select({ ws: members.workspaceId }).from(members).where(eq(members.userId, user.id));
+  const out = await deleteAccount(user.id);
+  for (const sub of out.subscriptionsToCancel) {
+    if (env.paymentsReady) await rzp("POST", `/subscriptions/${encodeURIComponent(sub)}/cancel`, { cancel_at_cycle_end: 0 }).catch(() => null);
+  }
+  before.forEach((m) => publish(m.ws, { type: "change", by: "account-deleted" }));
+  await destroySession(c);
+  console.log("[account] deleted", JSON.stringify({ user: user.id, deletedWorkspaces: out.deletedWorkspaces.length, handedOver: out.handedOver.length, cancelled: out.subscriptionsToCancel.length }));
+  return c.json({ ok: true, ...out });
+});
+
 
 api.patch("/me", async (c) => {
   const user = c.get("user");
@@ -142,7 +159,7 @@ api.post("/invites/:code/join", async (c) => {
       : [];
     if (!invited) {
       try { await assertCanAddMember(w.id); }
-      catch (e) { if (e instanceof LimitError) return c.json({ error: `${w.name} is full on its current plan — ask the owner to upgrade.`, limit: true }, 402); throw e; }
+      catch (e) { if (e instanceof LimitError) return c.json({ error: `${w.name} is full on its current plan.`, limit: true }, 402); throw e; }
     }
     if (invited) await db.update(members).set({ userId: user.id, name: user.name }).where(eq(members.id, invited.id));
     else await db.insert(members).values({
@@ -281,7 +298,7 @@ api.post("/workspaces/:id/transcribe", bodyLimit({ maxSize: 12 * 1024 * 1024, on
   const id = c.req.param("id"), user = c.get("user");
   if (!transcribeProvider()) return c.json({ error: "Voice transcription isn't set up." }, 503);
   const bill = await billingStatus(id);
-  if (!bill.ok) return c.json({ error: bill.plan === "pro" ? "This month's AI allowance is used up." : "Your free AI actions are used up — upgrade to keep using voice.", limit: true }, 402);
+  if (!bill.ok) return c.json({ error: bill.plan === "pro" ? "This month's AI allowance is used up." : "Your free AI actions are used up.", limit: true }, 402);
   const audio = Buffer.from(await c.req.arrayBuffer());
   if (audio.length < 800) return c.json({ text: "" });
   const seconds = Math.min(600, Math.max(1, Number(c.req.header("x-duration-ms") || 0) / 1000 || audio.length / 4000));
@@ -311,7 +328,7 @@ api.post("/workspaces/:id/import", bigBody, async (c) => {
   const fileName = str(b.fileName, 120) || "spreadsheet";
   let total = 0;
   const sheets: Sheet[] = (Array.isArray(b.sheets) ? b.sheets : []).slice(0, 20).map((s: any) => {
-    const headers: string[] = (Array.isArray(s?.headers) ? s.headers : []).slice(0, 80).map((h: unknown) => String(h ?? "").slice(0, 80));
+    const headers: string[] = (Array.isArray(s?.headers) ? s.headers : []).slice(0, 150).map((h: unknown) => String(h ?? "").slice(0, 80));
     const rows = (Array.isArray(s?.rows) ? s.rows : []).slice(0, Math.max(0, 10_000 - total)).map((r: any) => {
       const o: Record<string, string> = {};
       for (const h of headers) if (r && r[h] != null && String(r[h]).trim() !== "") o[h] = String(r[h]).slice(0, 1000);
@@ -333,8 +350,14 @@ api.post("/workspaces/:id/import", bigBody, async (c) => {
       const existing = await db.select({ name: sections.name, kind: sections.kind }).from(sections).where(eq(sections.workspaceId, id));
       plan = await planImport({
         sheets: sheets.map((s) => ({
-          sheet: s.name, headers: s.headers.slice(0, 40),
-          sample: s.rows.slice(0, 20).map((r) => Object.fromEntries(Object.entries(r).slice(0, 40).map(([k, v]) => [k, v.slice(0, 60)]))),
+          sheet: s.name, headers: s.headers,
+          // Every column with how often it's filled and a few real values from anywhere in the file, so a column
+          // that's empty in the first rows isn't mistaken for an empty one.
+          columns: s.headers.map((h) => {
+            const vals = s.rows.map((r) => r[h]).filter((v) => v != null && String(v).trim() !== "");
+            return { header: h, filled: vals.length, of: s.rows.length, examples: [...new Set(vals.map((v) => String(v).slice(0, 50)))].slice(0, 3) };
+          }),
+          sample: s.rows.slice(0, 8).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.slice(0, 40)]))),
         })),
         existing,
         onUsage: (u) => recordUsage(id, user.id, u),

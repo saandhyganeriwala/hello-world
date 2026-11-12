@@ -24,7 +24,7 @@ const body = async (c: Context) => (await c.req.json().catch(() => ({}))) as Rec
 const unix = (s: unknown) => (typeof s === "number" && s > 0 ? new Date(s * 1000) : null);
 
 /** Calls the Razorpay API. Returns the JSON body, or null (and logs why) when it fails. */
-async function rzp(method: "GET" | "POST", path: string, payload?: unknown): Promise<any | null> {
+export async function rzp(method: "GET" | "POST", path: string, payload?: unknown): Promise<any | null> {
   const res = await fetch(`${env.razorpayBaseUrl}${path}`, {
     method,
     headers: { "content-type": "application/json", authorization: "Basic " + Buffer.from(`${env.razorpayKeyId}:${env.razorpayKeySecret}`).toString("base64") },

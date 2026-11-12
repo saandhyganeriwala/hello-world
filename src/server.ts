@@ -37,7 +37,7 @@ app.get("/app", serveStatic({ path: "./public/app.html" }));
 app.get("/app/*", serveStatic({ path: "./public/app.html" }));
 // Policy pages (Razorpay asks for these): /terms, /privacy, /refunds, /contact, /shipping.
 app.get("/admin", serveStatic({ path: "./public/admin.html" }));
-for (const page of ["terms", "privacy", "refunds", "contact", "shipping"]) {
+for (const page of ["terms", "privacy", "refunds", "contact", "shipping", "delete-account"]) {
   app.get(`/${page}`, serveStatic({ path: `./public/${page}.html` }));
 }
 app.route("/", seo); // /blog, /sitemap.xml, /robots.txt, /llms.txt

@@ -16,6 +16,7 @@ const STATIC_PAGES = [
   { path: "/privacy", priority: "0.3", freq: "yearly" },
   { path: "/refunds", priority: "0.3", freq: "yearly" },
   { path: "/shipping", priority: "0.3", freq: "yearly" },
+  { path: "/delete-account", priority: "0.2", freq: "yearly" },
 ];
 
 export type Post = { slug: string; title: string; description: string; date: string; keywords: string; html: string; words: number };
@@ -167,3 +168,17 @@ ${posts().map((p) => `- [${p.title}](${SITE}/blog/${p.slug}): ${p.description}`)
 - [Terms](${SITE}/terms), [Privacy](${SITE}/privacy), [Cancellation & refunds](${SITE}/refunds)
 `);
 });
+
+// App links: crud.chat/app/... links (e.g. invites) open in the installed app.
+//  Android: ANDROID_CERT_SHA256 = the app signing certificate's SHA-256 (Play Console → App integrity), comma-separated.
+//  iOS:     APPLE_TEAM_ID = your Apple Developer Team ID; also enable "Associated Domains" (applinks:crud.chat) in Xcode.
+const APP_ID = "chat.crud.app";
+seo.get("/.well-known/assetlinks.json", (c) => {
+  const certs = (process.env.ANDROID_CERT_SHA256 || "").split(",").map((x) => x.trim()).filter(Boolean);
+  return c.json(certs.length ? [{ relation: ["delegate_permission/common.handle_all_urls"], target: { namespace: "android_app", package_name: APP_ID, sha256_cert_fingerprints: certs } }] : []);
+});
+seo.get("/.well-known/apple-app-site-association", (c) => {
+  const team = (process.env.APPLE_TEAM_ID || "").trim();
+  return c.json({ applinks: { details: team ? [{ appIDs: [`${team}.${APP_ID}`], components: [{ "/": "/app/*" }, { "/": "/app" }] }] : [] } });
+});
+seo.get("/manifest.webmanifest", (c) => c.body(fs.readFileSync("./public/manifest.webmanifest", "utf8"), 200, { "content-type": "application/manifest+json; charset=utf-8" }));

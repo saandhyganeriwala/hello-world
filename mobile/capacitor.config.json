@@ -1,0 +1,39 @@
+{
+  "appId": "chat.crud.app",
+  "appName": "CRUD.chat",
+  "webDir": "www",
+  "backgroundColor": "#F4F2EC",
+  "server": {
+    "url": "https://crud.chat/app",
+    "cleartext": false,
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "crud.chat",
+      "www.crud.chat"
+    ]
+  },
+  "ios": {
+    "appendUserAgent": "CRUDchatApp iOS",
+    "contentInset": "never",
+    "backgroundColor": "#F4F2EC",
+    "scrollEnabled": true
+  },
+  "android": {
+    "appendUserAgent": "CRUDchatApp Android",
+    "backgroundColor": "#F4F2EC",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#F4F2EC",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_INSIDE"
+    },
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

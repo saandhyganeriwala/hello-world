@@ -66,6 +66,9 @@ export const env = {
 
   defaultCountry: (process.env.DEFAULT_COUNTRY || "IN") as any,
 
+  // App Store / Play reviewers: "email:123456" — this email logs in with this fixed code (no email is sent).
+  reviewLogin: (() => { const [e, c] = (process.env.REVIEW_LOGIN || "").split(":"); return e && /^\d{6}$/.test(c || "") ? { email: e.trim().toLowerCase(), code: c } : null; })(),
+
   // Who can open the analytics dashboard at /admin (comma-separated login emails).
   adminEmails: (process.env.ADMIN_EMAILS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
 

@@ -32,11 +32,14 @@ export async function requestOtp(id: Identity): Promise<{ devCode?: string }> {
     throw new OtpError("Too many codes requested. Try again in an hour.", 429);
   }
 
-  const code = sixDigitCode();
+  // The store reviewers' demo account signs in with a fixed code instead of a sent one.
+  const review = env.reviewLogin && id.kind === "email" && id.value === env.reviewLogin.email ? env.reviewLogin.code : null;
+  const code = review ?? sixDigitCode();
   await db.insert(otpCodes).values({
     target: id.value, codeHash: hashCode(id.value, code), expiresAt: new Date(Date.now() + CODE_TTL_MS),
   });
 
+  if (review) return {};
   if (env.otpDevMode) {
     console.log(`[otp] dev mode — code for ${id.value}: ${code}`);
     return { devCode: code };

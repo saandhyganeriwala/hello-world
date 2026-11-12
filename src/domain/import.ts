@@ -67,7 +67,15 @@ export async function applyImport(tx: Tx, ctx: Ctx, sheets: Sheet[], plan: Impor
       const s = await ensureSection(tx, ctx.workspaceId, sec.name || src.name || "Imported", sec.icon, sec.kind);
       if (!sectionNames.includes(s.name)) sectionNames.push(s.name);
       if (s.isNew) newSections.push(s.name);
-      const mapping = sec.fields?.length ? sec.fields : src.headers.map((h) => ({ name: h, source: h }));
+      // Claude's mapping first (clean names, sensible order), then every other column that has data under
+      // its own header, so nothing in the file is silently dropped. The title, status and split columns are
+      // already represented.
+      const planned = (sec.fields ?? []).filter((m) => src.headers.includes(m.source));
+      const used = new Set([...planned.map((m) => m.source), sec.titleField, sec.matchColumn, sec.statusField].filter(Boolean));
+      const usedNames = new Set(planned.map((m) => cleanKey(m.name).toLowerCase()).concat(["title"]));
+      const rest = src.headers.filter((h) => !used.has(h) && h.trim())
+        .map((h) => { let name = cleanKey(h) || h; if (usedNames.has(name.toLowerCase())) name = `${name} (${h})`.slice(0, 60); usedNames.add(name.toLowerCase()); return { name, source: h }; });
+      const mapping = [...planned, ...rest];
 
       const batch: (typeof records.$inferInsert)[] = [];
       for (const row of selectRows(src.rows, sec.matchColumn, sec.matchValues)) {

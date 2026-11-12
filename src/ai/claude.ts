@@ -164,12 +164,12 @@ export async function understand(input: {
 }
 
 export async function planImport(input: {
-  sheets: { sheet: string; headers: string[]; sample: Record<string, string>[] }[];
+  sheets: { sheet: string; headers: string[]; columns?: { header: string; filled: number; of: number; examples: string[] }[]; sample: Record<string, string>[] }[];
   existing: { name: string; kind: string }[];
   onUsage?: OnUsage;
 }): Promise<ImportPlanT | null> {
   const text =
-    `Sheets (headers + sample rows):\n${JSON.stringify(input.sheets)}\n\n` +
+    `Sheets (headers, every column with how many rows have a value and example values, plus sample rows):\n${JSON.stringify(input.sheets)}\n\n` +
     `Existing sections: ${JSON.stringify(input.existing)}`;
   return structured(ImportPlan, IMPORT_SYSTEM, [{ type: "text", text }], env.effortHeavy, "import-plan",
     { normalize: normalizeImport, onUsage: input.onUsage });

@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CRUD.chat">
 <meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Type or speak — your business records organise themselves.">
@@ -1585,6 +1590,7 @@ function planSheet(){
     '<div class="pn-stats"><span><b>'+(pro?'≈ ':'')+n(b.actionsLeft)+'</b> of '+n(b.actionsLimit)+' AI actions left'+(pro?' this month':'')+'</span></div>'+
     (pro&&b.bonusActions>0?'<div class="pn-stats"><span>Includes '+b.bonusActions+' free actions you carried over</span></div>':'')+
     '<div class="pn-stats"><span>'+b.members+' of '+b.memberLimit+' people</span>'+(pro&&b.periodEnds&&!b.renewsAt?'<span>resets '+dShort(b.periodEnds)+'</span>':'')+'</div></div>';
+  if(NATIVE){ h+='<div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>'; openSheet(h); return; }
   h+='<div class="pro-card"><div class="pc-head"><span class="pc-name">CRUD.chat Pro</span><span class="pc-price">'+price(b)+'<small>/ month</small></span></div><ul class="pc-list">'+
     '<li>'+svg('check')+'Up to '+b.proMembers+' people in the workspace</li>'+
     '<li>'+svg('check')+'About '+n(b.proActions)+' AI actions a month (fair use)</li>'+
@@ -1671,7 +1677,7 @@ const VIEW_RENDER={
     const m=v.measure||detectMeasure(recs), money=m&&isMoneyField(recs,m);
     return groupRecs(recs,v.groupBy,v.groups).filter(g=>g.recs.length).map(g=>'<div class="grp"><div class="grp-h"><span>'+esc(g.key==='—'?'No '+v.groupBy:g.key)+'</span><span class="n">'+g.recs.length+(m?' · '+fmtNum(aggregate(g.recs,'sum',m),money):'')+'</span></div><div class="cards">'+kindCards(g.recs,kind,v)+'</div></div>').join(''); },
   table(recs,v){
-    const cols=(v.fields&&v.fields.length?v.fields:fieldsOf(recs).slice(0,7));
+    const cols=(v.fields&&v.fields.length?v.fields:fieldsOf(recs).slice(0,60)); // all columns; the table scrolls sideways
     const num=cols.map(c=>isNumField(recs,c)), money=cols.map(c=>isMoneyField(recs,c));
     const sortI=c=>v.sortBy===c?(v.sortDir==='asc'?' ↑':' ↓'):'';
     let h='<div class="tbl-wrap"><table class="tbl"><thead><tr>'+cols.map((c,i)=>'<th data-sortcol="'+esc(c)+'" class="'+(num[i]?'num':'')+'">'+esc(c)+sortI(c)+'</th>').join('')+'</tr></thead><tbody>';
@@ -1913,7 +1919,20 @@ function countUp(){
       if(!b.isConnected) return; b.textContent=pre+inr(v); if(k<1) requestAnimationFrame(step); else b.textContent=txt; };
     requestAnimationFrame(step); });
 }
-function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+// Inside the iOS / Android apps (Capacitor shell, see mobile/). Purchases aren't offered there:
+// the stores require their own billing for in-app subscriptions, so plans are managed on the web.
+const NATIVE=/CRUDchatApp/.test(navigator.userAgent);
+const CapPlugins=()=>(window.Capacitor&&window.Capacitor.Plugins)||{};
+function buzz(ms){ try{ const H=CapPlugins().Haptics; if(NATIVE&&H){ H.impact({style:ms>20?'MEDIUM':'LIGHT'}); return; } if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+if(NATIVE) document.documentElement.classList.add('native');
+// Android back button: close whatever is on top before leaving the app.
+setTimeout(()=>{ try{ const A=CapPlugins().App; if(!A) return;
+  A.addListener('backButton',()=>{
+    if(!$('#sheetScrim').hidden){ closeSheet(); return; }
+    if(!$('#searchScrim').hidden){ closeSearch(); return; }
+    if($('#chat').classList.contains('expanded')){ collapseChat(); return; }
+    if(view.mode==='detail'){ backFromDetail(); return; }
+    A.minimizeApp?A.minimizeApp():A.exitApp(); }); }catch(e){} },0);
 function summaryHead(name,recs,kind){
   let metrics=[];
   if(kind==='orders'){ const t=recs.reduce((s,r)=>s+amtNum(r),0); metrics=[['orders',recs.length]]; if(t)metrics.push(['value','₹'+inr(t)]); }
@@ -2301,7 +2320,8 @@ function menuSheet(){
     '<button class="row-item" id="mSearch"><span>'+svg('search')+'</span><span>Search records</span></button>'+
     '<button class="row-item" id="mName"><span>'+svg('person')+'</span><span>'+esc(u.name||'Your name')+'<span class="sub">'+esc(u.email||u.phone||'')+'</span></span></button>'+
     '<div class="sdiv"></div>'+
-    '<button class="row-item danger" id="mLogout"><span>'+svg('logout')+'</span><span>Log out</span></button>');
+    '<button class="row-item danger" id="mLogout"><span>'+svg('logout')+'</span><span>Log out</span></button>'+
+    '<button class="row-item danger" id="mDelete"><span>'+svg('trash')+'</span><span>Delete account</span></button>');
 }
 function nameSheet(){
   openSheet('<h3>Your name</h3><div class="inline"><input id="myName" value="'+esc((state.user&&state.user.name)||'')+'" placeholder="Your name" autocomplete="name" maxlength="40"><button id="myNameBtn">Save</button></div>');
@@ -2737,6 +2757,8 @@ function sheetClick(e){
   if(e.target.closest('#mSearch')){ closeSheet(); openSearch(); return; }
   if(e.target.closest('#mName')){ nameSheet(); return; }
   if(e.target.closest('#mLogout')){ logout(); return; }
+  if(e.target.closest('#mDelete')){ deleteSheet(); return; }
+  if(e.target.closest('#delGo')){ deleteAccountNow(e.target.closest('#delGo')); return; }
 }
 async function createWorkspace(){ const inp=$('#newWs'); const name=inp.value.trim(); if(!name) return;
   try{ const out=await api('POST','/workspaces',{name}); state.list=out.workspaces; closeSheet(); enterWorkspace(out.current,out.state); toast('Workspace created'); }
@@ -2914,6 +2936,26 @@ async function loadApp(){
     hideAuth(); enterWorkspace(b.current,b.state);
   }catch(e){ if(e.status!==401){ showAuth('start'); authError(e.message); } }
 }
+// Delete account: explain what happens, then ask the person to type DELETE.
+function deleteSheet(){
+  openSheet('<h3>Delete your account?</h3><div class="note" style="font-size:14px;line-height:1.55">'+
+    'This permanently removes your login and your access to every workspace.<br><br>'+
+    '• Workspaces you share with teammates stay with them (the longest-standing teammate becomes the owner).<br>'+
+    '• Workspaces only you are in are deleted with all their records, and any subscription on them is cancelled.<br>'+
+    '• This can’t be undone. Export anything you need first (each section can be exported to CSV).</div>'+
+    '<label class="note" for="delConfirm" style="display:block;margin-top:10px">Type <b>DELETE</b> to confirm</label>'+
+    '<div class="inline" style="margin:6px 0 12px"><input id="delConfirm" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DELETE"></div>'+
+    '<button class="btn danger" id="delGo" style="width:100%;justify-content:center">Delete my account</button>'); }
+async function deleteAccountNow(btn){
+  const v=($('#delConfirm')||{}).value||'';
+  if(v.trim().toUpperCase()!=='DELETE'){ toast('Type DELETE to confirm'); return; }
+  btn.disabled=true; btn.textContent='Deleting…';
+  try{ await api('DELETE','/me',{confirm:'DELETE'}); toast('Your account has been deleted.'); }
+  catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Delete my account'; return; }
+  if(events){ events.close(); events=null; }
+  state.user=null; state.workspaces={}; state.current=null; state.list=[];
+  try{ localStorage.removeItem('crud.ws'); }catch(e){}
+  closeSheet(); view={mode:'home',section:null,recordId:null}; render(); showAuth('start'); }
 async function logout(){
   try{ await api('POST','/auth/logout'); }catch(e){}
   if(events){ events.close(); events=null; }
@@ -2938,5 +2980,6 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 })();
 </script>
 <script>try{navigator.sendBeacon('/api/t',JSON.stringify({p:location.pathname,r:document.referrer,u:new URLSearchParams(location.search).get('utm_source')||''}))}catch(e){}</script>
+<script>if('serviceWorker' in navigator&&!/CRUDchatApp/.test(navigator.userAgent)) addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));</script>
 </body>
 </html>

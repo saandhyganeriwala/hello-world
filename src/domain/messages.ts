@@ -39,7 +39,7 @@ const looksLikeCommand = (t: string) =>
 function limitMessage(b: Billing) {
   return b.plan === "pro"
     ? `You've used this month's fair-usage AI allowance — it resets on ${new Date(b.periodEnds ?? Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}. Plain records are still saved.`
-    : `You've used your ${env.freeActions} free AI actions. Upgrade to Pro to keep asking questions, reading screenshots and changing views. Plain records are still saved.`;
+    : `You've used your ${env.freeActions} free AI actions, so questions, screenshots and view changes are paused. Plain records are still saved.`;
 }
 
 async function botReply(workspaceId: string, text: string) {

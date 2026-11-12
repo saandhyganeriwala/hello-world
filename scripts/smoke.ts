@@ -161,5 +161,45 @@ await setSubscriptionStatus("sub_test_1", "halted");
 check("halted: back to free", (await billingStatus(wsId)).plan === "free");
 check("unknown subscription is refused", !(await applyCharge({ subscriptionId: "sub_nope", paymentId: "x" })).ok);
 
+
+// Import keeps every column with data, even ones the plan leaves out.
+{
+  const { applyImport } = await import("../src/domain/import.js");
+  const wsI = await createWorkspace({ id: u.id, email: u.email, phone: null, name: "Asha" } as any, "Import test");
+  const headers = ["Order ID", "Customer", "Product", "Qty", "Amount", "Order Status", "GSTIN", "Notes", "Sales Rep"];
+  const rows = Array.from({ length: 30 }, (_, i) => ({ "Order ID": "SO-" + i, Customer: "Cust " + i, Product: "Box", Qty: String(i + 1), Amount: String(100 * (i + 1)),
+    "Order Status": i % 2 ? "Paid" : "New", ...(i > 24 ? { GSTIN: "27ABCDE1234F1Z" + i } : {}), ...(i === 29 ? { Notes: "rush" } : {}), "Sales Rep": "Pranav" }));
+  const plan = { sheets: [{ sheet: "Orders", sections: [{ name: "Orders", kind: "orders", icon: "package", titleField: "Customer", statusField: "Order Status",
+    fields: [{ name: "Product", source: "Product" }, { name: "Amount", source: "Amount" }], matchColumn: "", matchValues: [] }] }] } as any;
+  const out = await db.transaction((tx) => applyImport(tx, { workspaceId: wsI, userId: u.id, authorName: "Asha" }, [{ name: "Orders", headers, rows }], plan));
+  const st = await loadState(wsI, u.id);
+  const recsI = st.records.filter((r: any) => r.section === "Orders");
+  const keys = new Set(recsI.flatMap((r: any) => Object.keys(r.fields)));
+  check("import brings in all 30 rows", out.count === 30 && recsI.length === 30, out);
+  check("import keeps columns the plan left out (ids, sparse GSTIN, one-off Notes, rep)", ["Title", "Product", "Amount", "Status", "Order ID", "Qty", "GSTIN", "Notes", "Sales Rep"].every((k) => keys.has(k)), [...keys]);
+  check("status column isn't duplicated", !keys.has("Order Status"), [...keys]);
+}
+
+
+// Account deletion: shared workspaces are handed over, solo ones deleted, no ghost invites left behind.
+{
+  const { deleteAccount } = await import("../src/domain/account.js");
+  const { users: U, members: M, workspaces: W } = await import("../src/db/schema.js");
+  const { eq: EQ, and: AND } = await import("drizzle-orm");
+  const [a] = await db.insert(U).values({ email: "leaver@example.com", name: "Leaver" }).returning();
+  const [bUser] = await db.insert(U).values({ email: "stayer@example.com", name: "Stayer" }).returning();
+  const shared = await createWorkspace({ id: a.id, email: a.email, phone: null, name: "Leaver" } as any, "Shared shop");
+  const solo = await createWorkspace({ id: a.id, email: a.email, phone: null, name: "Leaver" } as any, "Solo shop");
+  await db.insert(M).values({ workspaceId: shared, userId: bUser.id, email: bUser.email, name: "Stayer", color: "#000" });
+  const del = await deleteAccount(a.id);
+  const [sw] = await db.select().from(W).where(EQ(W.id, shared));
+  const [so] = await db.select().from(W).where(EQ(W.id, solo));
+  const ghost = await db.select().from(M).where(EQ(M.email, "leaver@example.com"));
+  const [stayerRow] = await db.select().from(M).where(AND(EQ(M.workspaceId, shared), EQ(M.userId, bUser.id)));
+  check("delete account: shared workspace handed to the teammate", sw?.createdBy === bUser.id && stayerRow?.role === "owner" && del.handedOver.includes("Shared shop"), del);
+  check("delete account: solo workspace deleted", !so && del.deletedWorkspaces.includes("Solo shop"));
+  check("delete account: user and their memberships gone (no ghost invite)", ghost.length === 0 && !(await db.select().from(U).where(EQ(U.id, a.id))).length);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

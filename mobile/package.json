@@ -1,0 +1,27 @@
+{
+  "name": "crud-chat-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "iOS and Android apps for CRUD.chat (Capacitor shell around https://crud.chat/app)",
+  "scripts": {
+    "assets": "capacitor-assets generate --iconBackgroundColor '#FFC31F' --iconBackgroundColorDark '#FFC31F' --splashBackgroundColor '#F4F2EC' --splashBackgroundColorDark '#121211'",
+    "sync": "cap sync",
+    "android": "cap open android",
+    "ios": "cap open ios",
+    "build:android:debug": "cap sync android && cd android && ./gradlew assembleDebug",
+    "build:android:release": "cap sync android && cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.0"
+  }
+}
