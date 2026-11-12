@@ -1,0 +1,32 @@
+/* Blog pages — sits on top of legal.css (same tokens and header/footer). */
+header nav{display:flex;align-items:center;gap:18px}
+header nav a.cta{background:var(--ink);color:var(--paper);padding:7px 14px;border-radius:999px}
+.lede{font-size:18px;color:var(--ink-2);margin:0 0 28px}
+.posts{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.posts li{margin:0}
+.posts a{display:block;text-decoration:none;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;transition:border-color .15s,transform .15s}
+.posts a:hover{border-color:var(--ink);transform:translateY(-1px)}
+.pt{display:block;font-family:var(--display);font-weight:750;font-size:19px;line-height:1.3;color:var(--ink)}
+.pd{display:block;color:var(--ink-2);margin-top:6px;font-size:15px}
+.pm{display:block;color:var(--muted);margin-top:8px;font-size:13px}
+.crumbs{font-size:14px;margin-bottom:6px}
+.crumbs a{color:var(--muted);text-decoration:none}
+.crumbs a::before{content:"← "}
+article h1{margin-top:4px}
+.prose{font-size:17px;line-height:1.7}
+.prose h2{font-size:24px;margin-top:38px}
+.prose h3{font-family:var(--display);font-size:19px;margin:26px 0 6px}
+.prose p,.prose li{color:var(--ink-2)}
+.prose ul{padding-left:22px}
+.prose li{margin:6px 0}
+.prose table{width:100%;border-collapse:collapse;font-size:15px;margin:18px 0;display:block;overflow-x:auto}
+.prose th,.prose td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;min-width:120px}
+.prose th{font-size:13px;color:var(--muted)}
+.prose td:first-child{min-width:110px}
+.prose input[type=checkbox]{margin-right:8px;accent-color:var(--ink)}
+.prose code{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:.92em}
+.cta-box{margin:40px 0 10px;background:var(--marigold-soft);border-radius:18px;padding:22px}
+.cta-box p{color:var(--ink);margin:0 0 14px}
+.btn{display:inline-block;background:var(--ink);color:var(--paper);text-decoration:none;font-weight:700;padding:11px 20px;border-radius:999px}
+h2.more{font-size:20px;margin-top:40px}
+@media (max-width:520px){ header nav{gap:12px} header nav a:not(.cta){display:none} .prose{font-size:16px} }

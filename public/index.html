@@ -3,8 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>CRUD.chat — Excel, without the Excel work</title>
-<meta name="description" content="Your team records everything by voice, text or screenshot. CRUD.chat organises it into software that builds itself — on your phone. No formulas, no setup.">
+<title>CRUD.chat — Excel alternative for small business teams</title>
+<meta name="description" content="Record orders, payments, leads and tasks by text, voice note or screenshot. CRUD.chat turns them into a shared app for your team — no spreadsheets, no formulas.">
+<link rel="canonical" href="https://crud.chat/">
+<meta property="og:url" content="https://crud.chat/">
+<meta property="og:site_name" content="CRUD.chat">
+<meta property="og:image" content="https://crud.chat/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://crud.chat/og.png">
+<link rel="alternate" type="application/rss+xml" title="CRUD.chat blog" href="https://crud.chat/blog/rss.xml">
 <meta property="og:title" content="CRUD.chat — Excel, without the Excel work">
 <meta property="og:description" content="Speak it, type it or snap it. Your business records organise themselves — and you just ask for the answers.">
 <meta property="og:type" content="website">
@@ -15,6 +23,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Organization", "@id": "https://crud.chat/#org", "name": "CRUD.chat", "legalName": "Crud", "url": "https://crud.chat/", "logo": "https://crud.chat/logo.png", "email": "login@crud.chat", "address": {"@type": "PostalAddress", "streetAddress": "903, Raheja Willows, Lokhandwala, Kandivali East", "addressLocality": "Mumbai", "postalCode": "400101", "addressRegion": "Maharashtra", "addressCountry": "IN"}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebSite", "name": "CRUD.chat", "url": "https://crud.chat/", "publisher": {"@id": "https://crud.chat/#org"}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "CRUD.chat", "url": "https://crud.chat/", "applicationCategory": "BusinessApplication", "operatingSystem": "Web, Android, iOS", "description": "A mobile-first web app that small business teams use instead of spreadsheets: record orders, payments, leads and tasks by text, voice note or screenshot; AI structures each record, answers questions and builds views like tables, boards, pipelines, calendars and charts.", "image": "https://crud.chat/og.png", "publisher": {"@id": "https://crud.chat/#org"}, "offers": [{"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "INR"}, {"@type": "Offer", "name": "Pro", "price": "499", "priceCurrency": "INR", "priceSpecification": {"@type": "UnitPriceSpecification", "price": "499", "priceCurrency": "INR", "billingDuration": "P1M", "unitText": "MONTH"}}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is CRUD.chat?", "acceptedAnswer": {"@type": "Answer", "text": "CRUD.chat is a mobile-first web app that small business teams use instead of spreadsheets. You record orders, payments, leads or tasks by typing a message, sending a voice note or uploading a screenshot, and it turns each one into a structured record your whole team can see."}}, {"@type": "Question", "name": "Who is it for?", "acceptedAnswer": {"@type": "Answer", "text": "Small businesses and teams who record work on the go: traders, wholesalers, retailers, service businesses, agencies and sales teams that currently use Excel, Google Sheets, a register or WhatsApp notes."}}, {"@type": "Question", "name": "How is it different from Excel or Google Sheets?", "acceptedAnswer": {"@type": "Answer", "text": "There are no cells or formulas. You record in plain language and CRUD.chat creates the fields and sections for you. Each section can be a table, board, pipeline, calendar, chart or ledger, and you get answers by asking questions instead of writing formulas."}}, {"@type": "Question", "name": "Can I import my existing Excel sheets?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Import Excel (.xlsx, .xls) or CSV files, and export any section back to CSV whenever you like."}}, {"@type": "Question", "name": "Does it understand Hinglish?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. You can type messages in English or Hinglish, the way you would text a colleague."}}, {"@type": "Question", "name": "Do I need to install an app?", "acceptedAnswer": {"@type": "Answer", "text": "No. CRUD.chat works in the browser on any phone or computer. Log in with a code sent to your email."}}, {"@type": "Question", "name": "How much does it cost?", "acceptedAnswer": {"@type": "Answer", "text": "It's free to try, with 10 AI actions per person. Pro costs ₹499 a month per workspace (US$6 outside India) for up to 10 people and about 500 AI actions a month. Viewing, editing and searching are always free."}}, {"@type": "Question", "name": "Can I cancel any time?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Cancel from Plan & usage in the app. Pro stays active until the end of the month you've paid for, and your data stays."}}]}</script>
 <style>
 /* ---------- CRUD.chat — landing ----------
    Concept: the spreadsheet dissolving into conversation.
@@ -453,6 +465,13 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 .plan li::before{content:"";position:absolute;left:0;top:4px;width:16px;height:16px;border-radius:50%;background:var(--cobalt) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23141414' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/10px no-repeat}
 .plan .btn{margin-top:auto;justify-content:center}
 .plan-tag{position:absolute;top:-12px;right:22px;background:var(--hard);color:var(--paper);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
+.faq-list{max-width:760px;margin:36px auto 0;display:grid;gap:10px}
+.faq-list details{background:var(--card);border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);padding:0 20px}
+.faq-list summary{cursor:pointer;list-style:none;font-weight:700;font-size:17px;padding:18px 28px 18px 0;position:relative}
+.faq-list summary::-webkit-details-marker{display:none}
+.faq-list summary::after{content:"+";position:absolute;right:0;top:14px;font-size:24px;font-weight:500;color:var(--muted);transition:transform .2s}
+.faq-list details[open] summary::after{transform:rotate(45deg)}
+.faq-list details p{margin:0 0 18px;color:var(--ink-2);line-height:1.6;font-size:16px}
 .plan-note{text-align:center;color:var(--muted);font-size:14px;max-width:60ch;margin:22px auto 0}
 @media (max-width:700px){ .plans{grid-template-columns:1fr} }
 
@@ -519,6 +538,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
       <a href="#software">Use cases</a>
       <a href="#compare">vs Excel</a>
       <a href="#pricing">Pricing</a>
+      <a href="/blog">Blog</a>
     </nav>
     <div class="nav-cta">
       <a class="link-quiet" href="/app" data-auth="out">Log in</a>
@@ -742,6 +762,26 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
   </div>
 </section>
 
+<section class="sec" id="faq" aria-labelledby="faq-h" style="padding-top:0">
+  <div class="wrap">
+    <div class="head-c">
+      <div class="kicker">FAQ</div>
+      <h2 id="faq-h">Questions, answered.</h2>
+    </div>
+    <div class="faq-list">
+      <details><summary>What is CRUD.chat?</summary><p>CRUD.chat is a mobile-first web app that small business teams use instead of spreadsheets. You record orders, payments, leads or tasks by typing a message, sending a voice note or uploading a screenshot, and it turns each one into a structured record your whole team can see.</p></details>
+      <details><summary>Who is it for?</summary><p>Small businesses and teams who record work on the go: traders, wholesalers, retailers, service businesses, agencies and sales teams that currently use Excel, Google Sheets, a register or WhatsApp notes.</p></details>
+      <details><summary>How is it different from Excel or Google Sheets?</summary><p>There are no cells or formulas. You record in plain language and CRUD.chat creates the fields and sections for you. Each section can be a table, board, pipeline, calendar, chart or ledger, and you get answers by asking questions instead of writing formulas.</p></details>
+      <details><summary>Can I import my existing Excel sheets?</summary><p>Yes. Import Excel (.xlsx, .xls) or CSV files, and export any section back to CSV whenever you like.</p></details>
+      <details><summary>Does it understand Hinglish?</summary><p>Yes. You can type messages in English or Hinglish, the way you would text a colleague.</p></details>
+      <details><summary>Do I need to install an app?</summary><p>No. CRUD.chat works in the browser on any phone or computer. Log in with a code sent to your email.</p></details>
+      <details><summary>How much does it cost?</summary><p>It&#x27;s free to try, with 10 AI actions per person. Pro costs ₹499 a month per workspace (US$6 outside India) for up to 10 people and about 500 AI actions a month. Viewing, editing and searching are always free.</p></details>
+      <details><summary>Can I cancel any time?</summary><p>Yes. Cancel from Plan &amp; usage in the app. Pro stays active until the end of the month you&#x27;ve paid for, and your data stays.</p></details>
+    </div>
+    <p class="plan-note">More in the <a href="/blog">blog</a>: guides on WhatsApp orders, customer dues, simple CRM, stock tracking and moving off spreadsheets.</p>
+  </div>
+</section>
+
 <section class="final" aria-labelledby="fin-h">
   <div class="sheet-bg" aria-hidden="true"></div>
   <div class="wrap" style="position:relative">
@@ -759,7 +799,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
   <div class="wrap foot">
     <a class="brand" href="/"><span class="brand-mark"><svg class="ele" viewBox="-3 -1 70 66" aria-hidden="true"><g class="ele-ear l"><path d="M19 21C8 16 1 25 3 35c2 9 10 12 17 7z" class="sk"/><path d="M15.5 25.5c-6-1-8.5 5-7.5 9.5s5 6.5 8.5 4.5z" class="pk"/></g><g class="ele-ear r"><path d="M45 21c11-5 18 4 16 14-2 9-10 12-17 7z" class="sk"/><path d="M48.5 25.5c6-1 8.5 5 7.5 9.5s-5 6.5-8.5 4.5z" class="pk"/></g><ellipse cx="32" cy="31" rx="17" ry="16" class="sk"/><path d="M30.6 15.6q1.4-3.2 2.8 0" class="ln"/><g class="ele-trunk"><path d="M27.6 38.5c-1.4 7.5-.8 13.6 3.6 16.6 3.6 2.4 8.3.6 7.6-3.4-.3-1.8-2.4-2.2-3.1-.6-.5 1.3-1.7 1.8-2.7 1-1.9-1.6-1.4-7.2.3-13.6z" class="sk"/></g><circle cx="20.5" cy="36.5" r="2.7" class="ck"/><circle cx="43.5" cy="36.5" r="2.7" class="ck"/><path d="M22.4 24.6q2.8-2.2 6.2-1.2M35.4 23.4q3.4-1 6.2 1.2" class="ln br"/><g class="ele-eyes"><g class="ele-eye"><ellipse cx="25.6" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="26.5" cy="28.4" r=".95" class="hl"/></g><g class="ele-eye"><ellipse cx="38.4" cy="29.6" rx="2.5" ry="3.1" class="ey"/><circle cx="39.3" cy="28.4" r=".95" class="hl"/></g></g></svg></span><span>CRUD<b>.chat</b></span></a>
     <span>© 2026 Crud</span>
-    <nav aria-label="Footer"><a href="#ways">How it works</a><a href="#pricing">Pricing</a><a href="/app">Log in</a></nav>
+    <nav aria-label="Footer"><a href="#ways">How it works</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="/blog">Blog</a><a href="/app">Log in</a></nav>
     <nav aria-label="Policies" class="foot-legal"><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refunds">Cancellation &amp; refunds</a><a href="/shipping">Delivery</a></nav>
   </div>
 </footer>

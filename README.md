@@ -184,6 +184,17 @@ refunds for a started period. Every charge is counted once per payment id. Code:
 **Policy pages** (Razorpay's website checks): `/terms`, `/privacy`, `/refunds`, `/contact`, `/shipping` —
 static files in `public/`, linked from the landing page footer.
 
+## SEO & blog
+
+- **Blog**: write Markdown in `content/blog/<slug>.md` (front matter: `title`, `description`, `date`, `keywords`).
+  Posts are rendered server-side at `/blog/<slug>` with canonical URLs, Open Graph tags and `BlogPosting` +
+  breadcrumb structured data, and are added to `/sitemap.xml`, `/blog/rss.xml` and `/llms.txt` automatically.
+- **Landing page**: keyword title/description, canonical, share image (`public/og.png`), JSON-LD for
+  Organization, WebSite, SoftwareApplication (with prices) and an FAQ that matches the visible FAQ section.
+- **For crawlers**: `/robots.txt` (blocks `/app`, `/admin`, `/api/`), `/sitemap.xml`, `/llms.txt` (a plain summary
+  for AI assistants), real 404s for unknown pages, gzip on pages. `SITE_URL` overrides `https://crud.chat`.
+- Code: `src/routes/seo.ts`, `public/blog.css`, `public/404.html`.
+
 ## Analytics (admin)
 
 `/admin` is a dashboard for the team running CRUD.chat: visitors, signups, the signup → workspace → AI →
