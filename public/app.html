@@ -1584,7 +1584,7 @@ function planSheet(){
   const pct=Math.min(100,b.actionsLimit?b.actionsUsed/b.actionsLimit*100:0), pro=b.plan==='pro', st=subState(b);
   const subscribed=pro&&['active','pending','cancelling'].includes(st);
   const until=pro?(st==='pending'?'Renewal payment being retried':b.renewsAt?'Renews '+dLong(b.renewsAt):'Ends '+dLong(b.periodEnds||b.planUntil)):'';
-  let h='<h3>Plan & usage</h3><div class="plan-now"><div class="pn-top"><span class="pn-badge'+(pro?' pro':'')+'">'+(pro?'Pro':'Free')+'</span>'+
+  let h='<h3>Plan & usage</h3><div class="note" style="margin:-4px 0 10px">For this workspace: <b>'+esc(ws().name)+'</b>. Each workspace has its own plan.</div><div class="plan-now"><div class="pn-top"><span class="pn-badge'+(pro?' pro':'')+'">'+(pro?'Pro':'Free')+'</span>'+
     (pro?'<span class="pn-until">'+until+'</span>':'')+'</div>'+
     '<div class="meter"><i style="width:'+pct+'%" class="'+(pct>=100?'full':pct>80?'warn':'')+'"></i></div>'+
     '<div class="pn-stats"><span><b>'+(pro?'≈ ':'')+n(b.actionsLeft)+'</b> of '+n(b.actionsLimit)+' AI actions left'+(pro?' this month':'')+'</span></div>'+
@@ -1604,7 +1604,7 @@ function planSheet(){
       :'<div class="note" style="text-align:center">Billed '+price(b)+' every month, automatically. Cancel any time — Pro stays on until the end of the month you’ve paid for.</div>'+
        '<button class="btn danger" id="cancelSub" style="width:100%;justify-content:center;margin-top:8px">Cancel subscription</button>';
   } else if(canPay(b)){
-    h+='<button class="auth-btn" id="payPro" style="width:100%">Subscribe · '+price(b)+' / month</button><div class="note" style="text-align:center">'+
+    h+='<button class="auth-btn" id="payPro" style="width:100%">Upgrade this workspace · '+price(b)+' / month</button><div class="note" style="text-align:center">'+
       (!pro&&b.actionsLeft>0?'Your '+b.actionsLeft+' unused free actions move into your first month. ':'')+'Renews monthly, cancel any time. '+(IN_INDIA?'UPI Autopay or card.':'Card payments.')+
       ' <a href="/terms" target="_blank" rel="noopener">Terms</a> · <a href="/refunds" target="_blank" rel="noopener">Refunds</a></div>';
   } else h+='<button class="auth-btn" disabled style="width:100%">Upgrades open soon</button>';
@@ -1637,7 +1637,7 @@ function storePlanCard(b,pro,st,h){
   } else if(subscribed||pro){
     h+='<div class="note" style="text-align:center">This workspace is on Pro'+(b.periodEnds?' until '+dLong(b.periodEnds):'')+'.</div>';
   } else {
-    h+='<button class="auth-btn" id="storeBuy" style="width:100%"'+(storeProductTried&&!sp?' disabled':'')+'>'+(sp?'Subscribe · '+esc(sp.price)+' / month':storeProductTried?'Not available right now':'Subscribe')+'</button>'+
+    h+='<button class="auth-btn" id="storeBuy" style="width:100%"'+(storeProductTried&&!sp?' disabled':'')+'>'+(sp?'Upgrade this workspace · '+esc(sp.price)+' / month':storeProductTried?'Not available right now':'Upgrade this workspace')+'</button>'+
       '<div class="note" style="text-align:center">'+(b.actionsLeft>0?'Your '+b.actionsLeft+' unused free actions move into your first month. ':'')+
       'Payment is charged to your '+(IOS_APP?'Apple ID':'Google Play account')+'. The subscription renews every month unless cancelled at least 24 hours before the end of the current period; manage or cancel it in your '+(IOS_APP?'Apple ID':'Google Play')+' settings. '+
       '<a href="https://crud.chat/terms" target="_blank" rel="noopener">Terms of Use</a> · <a href="https://crud.chat/privacy" target="_blank" rel="noopener">Privacy Policy</a></div>'+
@@ -1661,15 +1661,28 @@ async function storeBuy(btn){
     if(r.status==='pending'){ toast('Payment pending — Pro turns on as soon as it completes.'); planSheet(); return; }
     if(r.status==='owned'){ await storeRestore(null); return; }
     btn.textContent='Activating Pro…';
-    afterPurchase(await sendPurchase(r)); closeSheet(); render(); celebrate();
+    const out=await sendPurchase(r);
+    // One Apple ID / Google account can hold one CRUD.chat subscription: if it already pays for another
+    // workspace, the store hands back that subscription and this workspace stays as it was.
+    if(out.workspaceId!==state.current){ elsewhereSheet(out.workspaceId); return; }
+    afterPurchase(out); closeSheet(); render(); celebrate();
   }catch(e){ toast(e.message||'The purchase didn’t go through.'); planSheet(); } }
 async function storeRestore(btn){
   if(btn){ btn.disabled=true; btn.textContent='Restoring…'; }
   try{
     const r=await nativeCall('Store','restore',{}), list=IOS_APP?(r.transactions||[]):(r.purchases||[]);
-    let ok=0; for(const p of list){ try{ afterPurchase(await sendPurchase(p)); ok++; }catch(e){} }
-    render(); planSheet(); toast(ok?'Purchases restored.':'No CRUD.chat subscription found on this '+(IOS_APP?'Apple ID':'Google account')+'.');
+    let here=0, elsewhere=null; for(const p of list){ try{ const out=await sendPurchase(p); afterPurchase(out); if(out.workspaceId===state.current) here++; else elsewhere=out.workspaceId; }catch(e){} }
+    render();
+    if(!here&&elsewhere){ elsewhereSheet(elsewhere); return; }
+    planSheet(); toast(here?'Purchases restored.':'No CRUD.chat subscription found on this '+(IOS_APP?'Apple ID':'Google account')+'.');
   }catch(e){ toast(e.message); planSheet(); } }
+function elsewhereSheet(wsId){
+  const other=(state.list||[]).find(w=>w.id===wsId), name=other?other.name:'another workspace', acct=IOS_APP?'Apple ID':'Google account';
+  openSheet('<h3>Already used for another workspace</h3><div class="note" style="font-size:14px;line-height:1.55">'+
+    'Your '+acct+' already pays for Pro in <b>'+esc(name)+'</b>. One '+acct+' can pay for one workspace, so <b>'+esc(ws().name)+'</b> wasn’t upgraded and you weren’t charged again.<br><br>'+
+    'To upgrade this workspace too, a teammate in it can subscribe with their own '+acct+'.</div>'+
+    (other?'<button class="auth-btn" id="goOtherWs" data-wsid="'+esc(wsId)+'" style="width:100%;margin-top:6px">Go to '+esc(name)+'</button>':'')+
+    '<button class="btn" id="closeElsewhere" style="width:100%;justify-content:center;margin-top:8px">OK</button>'); }
 // Purchases that completed while the app was closed (or whose activation didn't finish) are sent on launch.
 let storeSyncing=false;
 async function storeSyncPending(){
@@ -2806,6 +2819,8 @@ function sheetClick(e){
   if(e.target.closest('#payPro')){ payPro(e.target.closest('#payPro')); return; }
   if(e.target.closest('#cancelSub')){ cancelSub(e.target.closest('#cancelSub')); return; }
   if(e.target.closest('#storeBuy')){ storeBuy(e.target.closest('#storeBuy')); return; }
+  if(e.target.closest('#goOtherWs')){ const id=e.target.closest('#goOtherWs').dataset.wsid; closeSheet(); switchWorkspace(id); return; }
+  if(e.target.closest('#closeElsewhere')){ closeSheet(); return; }
   if(e.target.closest('#storeRestore')){ storeRestore(e.target.closest('#storeRestore')); return; }
   if(e.target.closest('#storeManage')){ nativeCall('Store','manage',{productId:iapProduct()}).catch(()=>{}); return; }
   if(e.target.closest('#mPlan')){ planSheet(); return; }

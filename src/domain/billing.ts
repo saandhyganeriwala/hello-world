@@ -126,8 +126,8 @@ export async function assertCanAddMember(workspaceId: string) {
   const b = await billingStatus(workspaceId);
   if (b.members >= b.memberLimit) {
     throw new LimitError(b.plan === "pro"
-      ? `Pro workspaces can have up to ${b.memberLimit} people.`
-      : `The free plan allows up to ${b.memberLimit} people (Pro allows ${env.proMembers}).`);
+      ? `This workspace has reached ${b.memberLimit} people, the most a Pro workspace can have.`
+      : `This workspace is on the free plan, which allows up to ${b.memberLimit} people. Upgrade this workspace to Pro to have up to ${env.proMembers}.`);
   }
 }
 export class LimitError extends Error {}

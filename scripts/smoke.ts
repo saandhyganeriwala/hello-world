@@ -201,5 +201,34 @@ check("unknown subscription is refused", !(await applyCharge({ subscriptionId: "
   check("delete account: user and their memberships gone (no ghost invite)", ghost.length === 0 && !(await db.select().from(U).where(EQ(U.id, a.id))).length);
 }
 
+
+// One person, several Pro workspaces at once (two Razorpay, one App Store): each is billed and limited on its own.
+{
+  const { subscriptions: SUB, users: U2 } = await import("../src/db/schema.js");
+  const { applyAppleTransaction } = await import("../src/domain/iap.js");
+  const [owner] = await db.insert(U2).values({ email: "multi@example.com", name: "Multi" }).returning();
+  const mk = (n: string) => createWorkspace({ id: owner.id, email: owner.email, phone: null, name: "Multi" } as any, n);
+  const [wa, wb, wc] = [await mk("Shop A"), await mk("Shop B"), await mk("Shop C")];
+  const end = addMonth(new Date());
+  await db.insert(SUB).values([
+    { workspaceId: wa, userId: owner.id, subscriptionId: "sub_multi_a", planId: "plan_x", amount: 49900 },
+    { workspaceId: wb, userId: owner.id, subscriptionId: "sub_multi_b", planId: "plan_x", amount: 49900 },
+  ]);
+  await applyCharge({ subscriptionId: "sub_multi_a", paymentId: "pay_multi_a1", periodEnd: end });
+  await applyCharge({ subscriptionId: "sub_multi_b", paymentId: "pay_multi_b1", periodEnd: end });
+  await applyAppleTransaction({ originalTransactionId: "77", transactionId: "771", productId: "chat.crud.pro.monthly", bundleId: "chat.crud.app",
+    purchaseDate: Date.now(), expiresDate: end.getTime(), appAccountToken: wc } as any, owner.id, wc);
+  const [ba, bb, bc] = [await billingStatus(wa), await billingStatus(wb), await billingStatus(wc)];
+  check("several Pro workspaces for one person, each with its own subscription", ba.plan === "pro" && bb.plan === "pro" && bc.plan === "pro"
+    && ba.subscription?.provider === "razorpay" && bc.subscription?.provider === "apple", [ba.plan, bb.plan, bc.plan]);
+  check("each Pro workspace gets its own 10 people and allowance", [ba, bb, bc].every((x) => x.memberLimit === 10 && x.actionsLimit >= 500));
+  await setSubscriptionStatus("sub_multi_a", "halted");
+  check("a failed payment on one workspace leaves the others Pro", (await billingStatus(wa)).plan === "free" && (await billingStatus(wb)).plan === "pro" && (await billingStatus(wc)).plan === "pro");
+  await applyCharge({ subscriptionId: "sub_multi_b", paymentId: "pay_multi_b2", periodEnd: addMonth(end) });
+  check("renewing one doesn't move the others' dates", (await billingStatus(wb)).renewsAt === addMonth(end).getTime() && (await billingStatus(wc)).renewsAt === end.getTime());
+  let msg = ""; try { for (let i = 0; i < 3; i++) await db.insert(members).values({ workspaceId: wa, email: `ma${i}@x.com`, name: "M", color: "#000" }); await assertCanAddMember(wa); } catch (e: any) { msg = e.message; }
+  check("free workspace limit message says to upgrade this workspace", /Upgrade this workspace to Pro/.test(msg), msg);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

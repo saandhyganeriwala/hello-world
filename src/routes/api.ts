@@ -159,7 +159,13 @@ api.post("/invites/:code/join", async (c) => {
       : [];
     if (!invited) {
       try { await assertCanAddMember(w.id); }
-      catch (e) { if (e instanceof LimitError) return c.json({ error: `${w.name} is full on its current plan.`, limit: true }, 402); throw e; }
+      catch (e) {
+        if (!(e instanceof LimitError)) throw e;
+        const bs = await billingStatus(w.id);
+        return c.json({ error: bs.plan === "pro"
+          ? `${w.name} is full: a Pro workspace can have up to ${bs.memberLimit} people.`
+          : `${w.name} is full: the free plan allows ${bs.memberLimit} people. Ask its owner to upgrade this workspace to Pro.`, limit: true }, 402);
+      }
     }
     if (invited) await db.update(members).set({ userId: user.id, name: user.name }).where(eq(members.id, invited.id));
     else await db.insert(members).values({
