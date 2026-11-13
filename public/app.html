@@ -314,7 +314,8 @@ body.editing #chat{display:none}
 .card.ie-open,.tcard.ie-open{border-bottom-left-radius:6px;border-bottom-right-radius:6px}
 .tbl td.editing{padding:4px 6px;background:var(--surface)!important}
 .cell-in{width:100%;min-width:120px;font:500 15px var(--font);color:var(--fg);background:var(--surface);border:1.5px solid var(--accent,#FFC31F);border-radius:8px;padding:6px 8px;outline:none}
-.tbl td.open-c,.tbl th.open-c{width:34px;padding:0 4px;position:sticky;right:0;background:inherit}
+.tbl td.open-c,.tbl th.open-c{width:34px;padding:0 4px;position:sticky;right:0}
+.tbl td.open-c{background:inherit;z-index:1}.tbl th.open-c{background:var(--surface-2);z-index:3}
 .open-rec{border:0;background:none;color:var(--muted);width:30px;height:30px;display:grid;place-items:center;border-radius:8px}
 .open-rec svg{width:16px;height:16px}
 .cv{margin:0 -2px}.cv-frame{display:block;width:100%;height:160px;border:0;background:transparent}
@@ -820,7 +821,10 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
 .tbl td{padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
 .tbl tr[data-id]{cursor:pointer}
 .tbl tr[data-id]:active td{background:var(--surface-2)}
-.tbl td:first-child,.tbl th:first-child{position:sticky;left:0;background:inherit;font-weight:650}
+.tbl th{z-index:2}
+.tbl td:first-child,.tbl th:first-child{position:sticky;left:0;font-weight:650}
+.tbl td:first-child{background:inherit;z-index:1;box-shadow:1px 0 0 var(--border)}
+.tbl th:first-child{background:var(--surface-2);z-index:3;box-shadow:1px 0 0 var(--border)}
 .tbl tbody tr{background:var(--surface)}
 .tbl .num{text-align:right;font-variant-numeric:tabular-nums}
 .tbl tr.tot td{font-weight:750;background:var(--surface-2);border-bottom:0}
@@ -1834,7 +1838,10 @@ const VIEW_RENDER={
     const m=v.measure||detectMeasure(recs), money=m&&isMoneyField(recs,m);
     return groupRecs(recs,v.groupBy,v.groups).filter(g=>g.recs.length).map(g=>'<div class="grp"><div class="grp-h"><span>'+esc(g.key==='—'?'No '+v.groupBy:g.key)+'</span><span class="n">'+g.recs.length+(m?' · '+fmtNum(aggregate(g.recs,'sum',m),money):'')+'</span></div><div class="cards">'+kindCards(g.recs,kind,v)+'</div></div>').join(''); },
   table(recs,v){
-    const cols=(v.fields&&v.fields.length?v.fields:fieldsOf(recs).slice(0,60)); // all columns; the table scrolls sideways
+    let cols=(v.fields&&v.fields.length?v.fields:fieldsOf(recs).slice(0,60)); // all columns; the table scrolls sideways
+    // Imports copy the name column (e.g. "Product") into Title: show one column, under the sheet's own name.
+    const twin=cols.includes('Title')&&cols.find(c=>c!=='Title'&&recs.every(r=>String(val(r,c))===String(val(r,'Title'))));
+    if(twin) cols=[twin,...cols.filter(c=>c!=='Title'&&c!==twin)];
     const num=cols.map(c=>isNumField(recs,c)), money=cols.map(c=>isMoneyField(recs,c));
     const sortI=c=>v.sortBy===c?(v.sortDir==='asc'?' ↑':' ↓'):'';
     let h='<div class="hint" style="margin:0 0 8px">Tap any cell to edit it</div><div class="tbl-wrap"><table class="tbl"><thead><tr>'+cols.map((c,i)=>'<th data-sortcol="'+esc(c)+'" class="'+(num[i]?'num':'')+'">'+esc(c)+sortI(c)+'</th>').join('')+'<th class="open-c"></th></tr></thead><tbody>';
@@ -2733,23 +2740,49 @@ function parseCSV(text){ const rows=[]; let i=0,field='',row=[],inq=false; const
     field+=c;i++; }
   if(field.length||row.length){ row.push(field); rows.push(row); }
   return rows; }
+/* Real spreadsheets often start with a title, notes or assumptions, and the table's header row comes
+   later (row 4, say). The header row is the first row that is about as wide as the table under it and
+   reads like labels (mostly text, not numbers). Lines above it are notes and are skipped. A sheet that is
+   only prose (one column of sentences) isn't a table at all. */
+function cellStr(c){ return String(c==null?'':c).trim(); }
+function rowWidth(r){ return r.filter(c=>cellStr(c)!=='').length; }
+function looksNumeric(s){ return /^[₹$€£]?\s*-?[\d,]+(\.\d+)?\s*%?$/.test(s); }
+function findHeaderRow(arr){
+  const scan=arr.slice(0,40), maxW=Math.max(0,...scan.map(rowWidth));
+  if(maxW<2) return -1; // prose, not a table
+  const need=Math.max(2,Math.ceil(maxW*0.6));
+  for(let i=0;i<Math.min(scan.length,25);i++){
+    const cells=scan[i].map(cellStr).filter(Boolean); if(cells.length<need) continue;
+    const texty=cells.filter(c=>!looksNumeric(c)&&c.length<=80).length;
+    if(texty>=Math.ceil(cells.length*0.7)) return i; }
+  return scan.findIndex(r=>rowWidth(r)>=need); }
 function sheetFromArray(name, arr){
-  arr=(arr||[]).filter(r=>r && r.some(c=>String(c==null?'':c).trim()!==''));
-  if(!arr.length) return {name, headers:[], rows:[]};
-  const seen={}; const headers=arr[0].map((h,i)=>{ let k=String(h==null?'':h).trim()||('Column '+(i+1));
-    if(seen[k]!=null){ seen[k]++; k=k+' '+seen[k]; } else seen[k]=0; return k; });
-  const rows=arr.slice(1).map(r=>{ const o={}; headers.forEach((h,i)=>{ const v=r[i]; if(v!=null&&String(v).trim()!=='') o[h]=String(v).trim(); }); return o; })
+  arr=(arr||[]).filter(r=>r && r.some(c=>cellStr(c)!==''));
+  if(!arr.length) return {name, headers:[], rows:[], skipped:'empty'};
+  const hi=findHeaderRow(arr);
+  if(hi<0) return {name, headers:[], rows:[], skipped:'notes'};
+  const head=arr[hi], width=Math.max(...arr.slice(hi).map(r=>r.length));
+  const seen={}; const headers=[]; for(let i=0;i<width;i++){ let k=cellStr(head[i])||('Column '+(i+1));
+    if(seen[k]!=null){ seen[k]++; k=k+' '+seen[k]; } else seen[k]=0; headers.push(k); }
+  const headSig=head.map(cellStr).join('\u0001');
+  const rows=arr.slice(hi+1)
+    .filter(r=>r.map(cellStr).join('\u0001')!==headSig)                      // a repeated header row
+    .filter(r=>{ if(rowWidth(r)!==1||headers.length<3) return true;            // a long note line between tables
+      const only=cellStr(r.find(c=>cellStr(c)!=='')); return only.length<=60; })
+    .map(r=>{ const o={}; headers.forEach((h,i)=>{ const v=cellStr(r[i]); if(v!=='') o[h]=v; }); return o; })
     .filter(o=>Object.keys(o).length);
-  return {name, headers, rows};
+  // Drop columns that are empty all the way down (and were never labelled).
+  const used=headers.filter(h=>rows.some(o=>o[h]!=null)||!/^Column \d+$/.test(h));
+  return {name, headers:used, rows, notesAbove:hi};
 }
 async function workbookFromFile(file){
   const base=file.name.replace(/\.(csv|xlsx|xls)$/i,'');
   if(/\.csv$/i.test(file.name)||/csv/i.test(file.type||'')){
-    const arr=parseCSV(await readText(file)); return {sheets:[sheetFromArray(base,arr)].filter(s=>s.rows.length)};
+    const arr=parseCSV(await readText(file)); return {sheets:[sheetFromArray(base,arr)].filter(s=>s.rows.length), skipped:[]};
   }
   const XLSX=await loadXLSX(); const wb=XLSX.read(await readAB(file),{type:'array'});
-  const sheets=wb.SheetNames.map(sn=>sheetFromArray(sn, XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false,blankrows:false}))).filter(s=>s.rows.length);
-  return {sheets};
+  const all=wb.SheetNames.map(sn=>sheetFromArray(sn, XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false,blankrows:false})));
+  return {sheets:all.filter(s=>s.rows.length), skipped:all.filter(s=>!s.rows.length&&s.skipped==='notes').map(s=>s.name)};
 }
 async function importFiles(files){ for(const f of files){ await importOne(f); } }
 async function importOne(file){
@@ -2774,6 +2807,7 @@ async function importOne(file){
     }
   }catch(e){ const i=w.messages.indexOf(temp); if(i>=0) w.messages.splice(i,1); toast(e.message); }
   processing=false; updateSend(); render(); if(view.mode==='list') $('#canvas').scrollTop=0;
+  if(wb.skipped&&wb.skipped.length) toast('Skipped '+wb.skipped.length+' sheet'+(wb.skipped.length>1?'s':'')+' of notes (not tables): '+wb.skipped.join(', '));
   setTimeout(()=>{recentIds=new Set();},900);
 }
 
@@ -2922,6 +2956,7 @@ function commitField(inp){
   const k=inp.dataset.k, v=inp.value.trim(), cur=r.fields[k]==null?'':String(r.fields[k]); if(v===cur) return;
   const fields={}; let seen=false; for(const [fk,fv] of Object.entries(r.fields)){ if(fk===k){ seen=true; if(v) fields[fk]=v; } else fields[fk]=fv; }
   if(!seen&&v) fields[k]=v;
+  if(k!=='Title'&&v&&cur&&String(r.fields.Title||'')===cur) fields.Title=v; // the name shown on cards follows its column
   r.fields=fields; pushFields(r.id,fields,(v?(cur?'changed ':'added ')+k:'removed '+k)); }
 function commitNewField(inp){
   const box=inp.closest('.ie-add'); if(!box) return; const kI=box.querySelector('.ie-newk'), vI=box.querySelector('.ie-newv');
