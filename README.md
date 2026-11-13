@@ -184,6 +184,20 @@ refunds for a started period. Every charge is counted once per payment id. Code:
 **Policy pages** (Razorpay's website checks): `/terms`, `/privacy`, `/refunds`, `/contact`, `/shipping` —
 static files in `public/`, linked from the landing page footer.
 
+## Views, custom views and editing in place
+
+- Each section shows its **top 3–4 views** for its kind of data (plus any the team made). The view picker has a
+  "Want to see it another way?" box: anything can be asked for in words.
+- When a request doesn't fit a built-in view (e.g. a funnel whose layers come from different columns), Claude makes
+  a **custom view**: a spec, turned into drawing code by a second call (`generateCustomView`, prompt
+  `CUSTOM_VIEW_SYSTEM`). The code runs in a sandboxed iframe (opaque origin, no network by CSP) with the section's
+  live records and small helpers (`CRUD.num`, `CRUD.money`, `CRUD.open` …). Changing it rewrites the code from the
+  previous version. Drawing a view isn't counted as an extra action.
+- **Editing in place**: tap a table cell to edit it; tap a card to open it up with every field editable; other
+  views use a quick-edit sheet. Fields save as you leave them, the composer steps aside while typing, the field
+  stays visible above the keyboard, and teammates' live updates wait until you're done.
+- **Voice**: tap the mic to start, tap again to finish.
+
 ## Mobile apps
 
 iOS and Android apps live in `mobile/` (a Capacitor 8 shell around crud.chat/app). Builds, store setup and

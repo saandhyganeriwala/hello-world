@@ -1,13 +1,15 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../db/client.js";
-import { messages, records } from "../db/schema.js";
-import { aiEnabled, understand } from "../ai/claude.js";
+import { messages, records, sections } from "../db/schema.js";
+import { aiEnabled, generateCustomView, understand } from "../ai/claude.js";
 import type { UnderstandingT } from "../ai/schemas.js";
 import { publish } from "../realtime.js";
 import { applyCommands, applyOps, buildSnapshot, type Ctx, type Effect } from "./apply.js";
 import { localStructure, looksLikeQuestion } from "./localParser.js";
 import { billingStatus, recordUsage, type Billing } from "./billing.js";
 import { env } from "../env.js";
+import { sanitizeView } from "./views.js";
+import { and } from "drizzle-orm";
 
 export type ImageInput = { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" };
 
@@ -99,6 +101,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
       await botReply(ws, ai.answer.trim() || "I don't have anything on that yet.");
     } else if (ai?.kind === "command") {
       result.kind = "command";
+      ai.commands = await drawCustomViews(ws, ai.commands, (u) => recordUsage(ws, ctx.userId, u));
       const out = await db.transaction((tx) => applyCommands(tx, ctx, ai!.commands));
       effects = out.effects;
       result.focus = out.goto || ai.focus || null;
@@ -154,4 +157,34 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
     publish(ws, { type: "change", by: input.clientId });
   }
   return { result, effects };
+}
+
+
+/**
+ * Custom views arrive from Claude as a spec ("a funnel with one layer per column…"). Before the command is
+ * applied, the spec is turned into drawing code (with the section's real fields and a sample of records),
+ * so the view appears in the same reply. When a custom view is changed, its previous code is the starting point.
+ */
+async function drawCustomViews(ws: string, commands: UnderstandingT["commands"], onUsage: (u: any) => void | Promise<void>) {
+  const db = getDb();
+  return Promise.all(commands.map(async (cmd) => {
+    if (cmd.type !== "addView" || !cmd.section) return cmd;
+    const v = sanitizeView(cmd.view);
+    if (!v || v.type !== "custom" || !v.spec || v.code) return cmd;
+    const [sec] = await db.select().from(sections).where(and(eq(sections.workspaceId, ws), eq(sections.name, cmd.section))).limit(1);
+    const recs = sec ? await db.select({ fields: records.fields }).from(records).where(eq(records.sectionId, sec.id)).limit(500) : [];
+    const names = [...new Set(recs.flatMap((r) => Object.keys(r.fields)))].slice(0, 60);
+    const fields = names.map((name) => {
+      const vals = recs.map((r) => r.fields[name]).filter((x) => x != null && String(x).trim() !== "");
+      return { name, filled: vals.length, examples: [...new Set(vals.map((x) => String(x).slice(0, 40)))].slice(0, 4) };
+    });
+    const previous = ((sec?.views as any[]) || []).map(sanitizeView).find((x) => x && x.type === "custom" && x.name.toLowerCase() === v.name.toLowerCase())?.code || "";
+    try {
+      const out = await generateCustomView({ section: cmd.section, spec: v.spec, previous: previous || undefined, fields, count: recs.length,
+        sample: recs.slice(0, 15).map((r) => Object.fromEntries(Object.entries(r.fields).map(([k, x]) => [k, String(x).slice(0, 60)]))), onUsage });
+      if (out?.code) v.code = out.code.replace(/^```(?:js|javascript)?\s*|```\s*$/g, "").trim();
+    } catch (e) { console.error("[ai] custom view failed", e); }
+    if (!v.code && previous) v.code = previous; // keep the old drawing rather than break the view
+    return { ...cmd, view: JSON.stringify(v) };
+  }));
 }

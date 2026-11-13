@@ -17,7 +17,7 @@ const Field = z.object({ key: z.string(), value: z.string() });
 // ---------- views: how a section is shown ----------
 
 export const VIEW_TYPES = [
-  "list", "table", "board", "funnel", "calendar", "agenda", "chart", "metrics", "tracker", "ledger", "leaderboard",
+  "list", "table", "board", "funnel", "calendar", "agenda", "chart", "metrics", "tracker", "ledger", "leaderboard", "custom",
 ] as const;
 export const FILTER_OPS = [
   "eq", "neq", "contains", "gt", "gte", "lt", "lte", "empty", "notEmpty", "today", "thisWeek", "thisMonth", "lastDays",
@@ -122,3 +122,7 @@ export type OperationT = z.infer<typeof Operation>;
 export type CommandT = z.infer<typeof Command>;
 export type UnderstandingT = z.infer<typeof Understanding>;
 export type ImportPlanT = z.infer<typeof ImportPlan>;
+
+// A custom view's code, written from its spec (see CUSTOM_VIEW_SYSTEM).
+export const CustomViewOut = z.object({ code: z.string(), note: z.string() });
+export type CustomViewOutT = z.infer<typeof CustomViewOut>;

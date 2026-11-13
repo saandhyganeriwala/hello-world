@@ -2,8 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { toJSONSchema, type z } from "zod/v4";
 import { env, type Effort } from "../env.js";
-import { IMPORT_SYSTEM, UNDERSTAND_SYSTEM } from "./prompts.js";
-import { ImportPlan, Understanding, type ImportPlanT, type UnderstandingT } from "./schemas.js";
+import { CUSTOM_VIEW_SYSTEM, IMPORT_SYSTEM, UNDERSTAND_SYSTEM } from "./prompts.js";
+import { CustomViewOut, ImportPlan, Understanding, type CustomViewOutT, type ImportPlanT, type UnderstandingT } from "./schemas.js";
 
 const client = env.anthropicKey ? new Anthropic({ apiKey: env.anthropicKey }) : null;
 export const aiEnabled = () => client !== null;
@@ -143,7 +143,9 @@ export async function understand(input: {
     notes.push(`The team member is CURRENTLY viewing record id "${input.contextRecordId}". If this message changes a record, it most likely means that one.`);
   }
   if (input.viewing?.section) {
-    notes.push(`They are looking at the "${input.viewing.section}" section in this view: ${JSON.stringify(input.viewing.view)}. "Only show…", "filter…", "group by…", "sort…", "hide…" or "show … as …" most likely means changing THIS view — return addView with the same view name and the full updated view.`);
+    const shown: any = input.viewing.view && typeof input.viewing.view === "object" ? { ...(input.viewing.view as any) } : input.viewing.view;
+    if (shown && typeof shown === "object") delete shown.code; // a custom view's drawing code isn't needed here; its spec is
+    notes.push(`They are looking at the "${input.viewing.section}" section in this view: ${JSON.stringify(shown).slice(0, 4000)}. "Only show…", "filter…", "group by…", "sort…", "hide…", "show … as …" or "change this…" most likely means changing THIS view — return addView with the same view name and the full updated view (for a custom view: type "custom" and the full updated spec).`);
   }
   if (/^\s*@?\s*crud\b/i.test(input.text) || /^\s*hey\s+crud\b/i.test(input.text)) {
     notes.push("They tagged you (CRUD) directly — expect a command or a question, not a new record, unless they clearly state a business fact.");
@@ -173,4 +175,19 @@ export async function planImport(input: {
     `Existing sections: ${JSON.stringify(input.existing)}`;
   return structured(ImportPlan, IMPORT_SYSTEM, [{ type: "text", text }], env.effortHeavy, "import-plan",
     { normalize: normalizeImport, onUsage: input.onUsage });
+}
+
+/** Writes (or rewrites) a custom view's drawing code from its spec. See CUSTOM_VIEW_SYSTEM. */
+export async function generateCustomView(input: {
+  section: string; spec: string; previous?: string;
+  fields: { name: string; filled: number; examples: string[] }[]; count: number; sample: Record<string, string>[];
+  onUsage?: OnUsage;
+}): Promise<CustomViewOutT | null> {
+  const text =
+    `Section: ${input.section} (${input.count} records)\n` +
+    `Fields (how many records have a value, and example values):\n${JSON.stringify(input.fields)}\n\n` +
+    `Sample records:\n${JSON.stringify(input.sample)}\n\n` +
+    (input.previous ? `Previous code (change it as the spec says):\n${input.previous}\n\n` : "") +
+    `Spec:\n${input.spec}`;
+  return structured(CustomViewOut, CUSTOM_VIEW_SYSTEM, [{ type: "text", text }], env.effortHeavy, "custom-view", { onUsage: input.onUsage });
 }

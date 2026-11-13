@@ -298,6 +298,31 @@ input,textarea{font-family:inherit;color:inherit}
 .fval:active{background:var(--surface-2)}
 .fval.edit{outline:2px solid var(--accent);background:var(--surface);padding:6px 8px;margin:-6px -8px}
 .fval-input{width:100%;border:0;background:transparent;font-size:16px;font-weight:500;outline:none;padding:0}
+/* editing in place */
+body.editing #chat{display:none}
+.ie{background:var(--surface);border:1.5px solid var(--hard,var(--border-strong));border-radius:16px;padding:6px 14px 12px;margin:-4px 0 10px;box-shadow:var(--shadow);animation:ieIn .18s ease-out}
+.ie.ie-sheet{border:0;box-shadow:none;padding:0;margin:0;animation:none}
+@keyframes ieIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.ie-row{display:grid;grid-template-columns:minmax(84px,32%) 1fr;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+.ie-k{font-size:12.5px;font-weight:650;color:var(--muted);overflow-wrap:anywhere}
+.ie-in,.ie-newk,.ie-newv{width:100%;font:500 16px var(--font);color:var(--fg);background:var(--surface-2);border:1.5px solid transparent;border-radius:10px;padding:8px 10px;outline:none;resize:vertical;min-width:0}
+.ie-in:focus,.ie-newk:focus,.ie-newv:focus{border-color:var(--accent,#FFC31F);background:var(--surface)}
+.ie-add{grid-template-columns:minmax(84px,32%) 1fr;border-bottom:0}
+.ie-newk{font-size:13px}
+.ie-foot{display:flex;gap:8px;justify-content:space-between;margin-top:10px}
+.ie-foot .btn{flex:1;justify-content:center}
+.card.ie-open,.tcard.ie-open{border-bottom-left-radius:6px;border-bottom-right-radius:6px}
+.tbl td.editing{padding:4px 6px;background:var(--surface)!important}
+.cell-in{width:100%;min-width:120px;font:500 15px var(--font);color:var(--fg);background:var(--surface);border:1.5px solid var(--accent,#FFC31F);border-radius:8px;padding:6px 8px;outline:none}
+.tbl td.open-c,.tbl th.open-c{width:34px;padding:0 4px;position:sticky;right:0;background:inherit}
+.open-rec{border:0;background:none;color:var(--muted);width:30px;height:30px;display:grid;place-items:center;border-radius:8px}
+.open-rec svg{width:16px;height:16px}
+.cv{margin:0 -2px}.cv-frame{display:block;width:100%;height:160px;border:0;background:transparent}
+.vrow{display:flex;align-items:center}.vrow .row-item{flex:1}
+.vrm{flex:none;width:36px;height:36px;border:0;background:none;color:var(--muted);border-radius:10px;display:grid;place-items:center}.vrm svg{width:16px;height:16px}
+.vask{padding:4px 4px 6px}.vask .inv-h{display:block;margin:6px 2px 8px}
+.vask textarea{width:100%;font:500 16px var(--font);color:var(--fg);background:var(--surface-2);border:1.5px solid transparent;border-radius:12px;padding:10px 12px;resize:none;outline:none;margin-bottom:8px}
+.vask textarea:focus{border-color:var(--accent,#FFC31F);background:var(--surface)}
 .addfield{display:flex;gap:8px;padding:11px 13px;border-top:1px solid var(--border);background:var(--surface-2)}
 .addfield input{flex:1;min-width:0;border:1px solid var(--border);background:var(--surface);border-radius:9px;
   padding:9px 11px;font-size:16px;outline:none}
@@ -1290,6 +1315,9 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 
 /* ---------------- Render ---------------- */
 function render(){
+  // Never rebuild the screen under someone typing in a field; it redraws when they leave it.
+  if(editingNow()){ renderDeferred=true; return; }
+  document.querySelectorAll('.ie-open').forEach(x=>x.classList.remove('ie-open'));
   const w=ws();
   if(!$('#mark').firstChild) $('#mark').innerHTML=eyes();
   $('#wsName').textContent=w.name;
@@ -1357,8 +1385,8 @@ function colorFor(s){ let h=0; s=String(s||''); for(let i=0;i<s.length;i++) h=(h
    or the Customize menu) are stored on the section and shared by the team.
    ================================================================ */
 const VIEW_TYPES_UI=['list','table','board','funnel','calendar','agenda','chart','metrics','tracker','ledger','leaderboard'];
-const VIEW_ICON={list:'vlist',table:'vtable',board:'vboard',funnel:'vfunnel',calendar:'calendar',agenda:'vagenda',chart:'vchart',metrics:'vgauge',tracker:'vtarget',ledger:'rupee',leaderboard:'vtrophy'};
-const VIEW_LABEL={list:'List',table:'Table',board:'Board',funnel:'Funnel',calendar:'Calendar',agenda:'Agenda',chart:'Chart',metrics:'Overview',tracker:'Tracker',ledger:'Ledger',leaderboard:'Top list'};
+const VIEW_ICON={list:'vlist',table:'vtable',board:'vboard',funnel:'vfunnel',calendar:'calendar',agenda:'vagenda',chart:'vchart',metrics:'vgauge',tracker:'vtarget',ledger:'rupee',leaderboard:'vtrophy',custom:'spark'};
+const VIEW_LABEL={list:'List',table:'Table',board:'Board',funnel:'Funnel',calendar:'Calendar',agenda:'Agenda',chart:'Chart',metrics:'Overview',tracker:'Tracker',ledger:'Ledger',leaderboard:'Top list',custom:'Custom'};
 const OP_LABEL={eq:'is',neq:'is not',contains:'contains',gt:'>',gte:'≥',lt:'<',lte:'≤',empty:'is empty',notEmpty:'is filled',today:'is today',thisWeek:'is this week',thisMonth:'is this month',lastDays:'in last'};
 // Validated categorical palette (fixed order; separate dark steps). Never cycled — extra categories fold into "Other".
 const SERIES={light:['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#6250d6','#e34948'],
@@ -1465,7 +1493,7 @@ function defaultViews(name,kind,recs){
   return L; }
 function viewsFor(name){
   const s=ws().sections[name]; const recs=ws().records.filter(r=>r.section===name);
-  const list=defaultViews(name,kindOf(name),recs); const saved=(s&&Array.isArray(s.views)?s.views:[]).map(mkView);
+  const list=defaultViews(name,kindOf(name),recs).slice(0,4); const saved=(s&&Array.isArray(s.views)?s.views:[]).map(mkView);
   saved.forEach(v=>{ let i=list.findIndex(d=>d.name.toLowerCase()===v.name.toLowerCase()&&!d.saved);
     if(i<0&&!['list','table','chart'].includes(v.type)) i=list.findIndex(d=>!d.saved&&d.type===v.type);
     if(i>=0) list[i]=Object.assign(v,{saved:true,custom:list[i].name.toLowerCase()!==v.name.toLowerCase()}); else list.push(Object.assign(v,{saved:true,custom:true})); });
@@ -1507,12 +1535,15 @@ function viewBar(name,v,all){
 
 /* ---- Views sheet: switch view, add a view, edit this one ---- */
 function viewsSheet(){
-  const name=view.section, recs=ws().records.filter(r=>r.section===name), cur=activeView(name), vs=viewsFor(name), types=relevantTypes(recs,kindOf(name));
-  openSheet('<h3>Views</h3>'+vs.map(x=>'<button class="row-item" data-pickview="'+esc(x.name)+'"><span class="vi">'+svg(VIEW_ICON[x.type]||'vlist')+'</span><span>'+esc(x.name)+(x.name.toLowerCase()!==VIEW_LABEL[x.type].toLowerCase()?'<span class="sub">'+esc(VIEW_LABEL[x.type])+'</span>':'')+'</span>'+(x===cur?'<span class="rt">'+svg('check')+'</span>':'')+'</button>').join('')+
-    '<div class="sdiv"></div><div class="inv-h" style="margin:8px 6px 8px">Add a view</div><div class="newviews">'+types.map(t=>'<button class="nv" data-newview="'+t+'">'+svg(VIEW_ICON[t])+'<span>'+VIEW_LABEL[t]+'</span></button>').join('')+'</div>'+
-    '<div class="sdiv"></div><button class="row-item" id="vEdit"><span class="vi">'+svg('sliders')+'</span><span>Edit “'+esc(cur.name)+'”<span class="sub">Layout, fields, chart and goal settings</span></span></button>'+
-    '<button class="row-item" id="czCsv"><span class="vi">'+svg('download')+'</span><span>Export CSV</span></button>'+
-    '<div class="note">Or just ask CRUD — “show this as a pie chart by product”.</div>'); }
+  const name=view.section, cur=activeView(name), vs=viewsFor(name);
+  openSheet('<h3>Views</h3>'+vs.map(x=>'<div class="vrow"><button class="row-item" data-pickview="'+esc(x.name)+'"><span class="vi">'+svg(VIEW_ICON[x.type]||'vlist')+'</span><span>'+esc(x.name)+
+      (x.type==='custom'?'<span class="sub">Made for you</span>':x.name.toLowerCase()!==(VIEW_LABEL[x.type]||'').toLowerCase()?'<span class="sub">'+esc(VIEW_LABEL[x.type]||'')+'</span>':'')+'</span>'+
+      (x.name===cur.name?'<span class="rt">'+svg('check')+'</span>':'')+'</button>'+
+      (x.custom?'<button class="vrm" data-rmview="'+esc(x.name)+'" aria-label="Remove view '+esc(x.name)+'">'+svg('close')+'</button>':'')+'</div>').join('')+
+    '<div class="sdiv"></div><div class="vask"><label class="inv-h" for="vAsk">Want to see it another way?</label>'+
+    '<textarea id="vAsk" rows="3" placeholder="Describe it — e.g. “a funnel from Leads to Contacted to Won”, or “change this to show totals by city”"></textarea>'+
+    '<button class="auth-btn" id="vAskGo" style="width:100%">Make this view</button></div>'+
+    '<button class="row-item" id="czCsv"><span class="vi">'+svg('download')+'</span><span>Export CSV</span></button>'); }
 function newView(type){
   const name=view.section, recs=ws().records.filter(r=>r.section===name); const amt=detectMeasure(recs), stage=detectStage(recs)||catFields(recs)[0]||'', dateF=detectDate(recs);
   const names=viewsFor(name).map(v=>v.name.toLowerCase()); let n=VIEW_LABEL[type], i=2; while(names.includes(n.toLowerCase())) n=VIEW_LABEL[type]+' '+(i++);
@@ -1748,7 +1779,53 @@ function fmtCell(k,x){ const s=String(x);
   const digits=s.replace(/[^\d+]/g,''); if(/phone|mobile|whatsapp|contact|number/i.test(k)&&digits.replace(/\D/g,'').length>=10) return '<a class="fval-link" href="tel:'+esc(digits)+'">'+esc(s)+'</a>';
   if(/^status|stage|state$/i.test(k)) return '<span class="chipstat '+statusClass(s)+'">'+esc(s)+'</span>';
   return esc(s); }
+/* ---- Custom views ----
+   Drawn by code Claude wrote from the team's description. It runs in a sandboxed frame: its own origin
+   (no cookies, no access to this page), and a content policy with no network at all. It gets the
+   section's records (after filters) and a few helpers, and can only send back its height, a request to
+   open a record, or an error. */
+let cvSeq=0; const cvFrames={};
+function cvTheme(){ const cs=getComputedStyle(document.documentElement), g=k=>cs.getPropertyValue(k).trim();
+  return {fg:g('--fg'),fg2:g('--fg-2'),muted:g('--muted'),surface:g('--surface'),surface2:g('--surface-2'),border:g('--border'),accent:g('--accent')||'#FFC31F',good:g('--good'),warn:g('--warn'),danger:g('--danger'),
+    colors:SERIES[isDark()?'dark':'light'], dark:isDark()}; }
+function cvDoc(id,code,recs){
+  const t=cvTheme(), data=recs.map(r=>Object.assign({},r.fields,{_id:r.id,_created:r.createdAt}));
+  const j=x=>JSON.stringify(x).replace(/</g,'\\u003c').replace(/\u2028|\u2029/g,'');
+  const safeCode=String(code||'').replace(/<\/script/gi,'<\\/script');
+  return '<!doctype html><html><head><meta charset="utf-8">'+
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:">'+
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap">'+
+    '<style>:root{--fg:'+t.fg+';--fg-2:'+t.fg2+';--muted:'+t.muted+';--surface:'+t.surface+';--surface-2:'+t.surface2+';--border:'+t.border+';--accent:'+t.accent+';--good:'+t.good+';--warn:'+t.warn+';--danger:'+t.danger+';color-scheme:'+(t.dark?'dark':'light')+'}'+
+    '*{box-sizing:border-box}html,body{margin:0;background:transparent;color:var(--fg);font:14px/1.45 "Hanken Grotesk",-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}'+
+    'h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;margin:0 0 8px}.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px}'+
+    '.muted{color:var(--muted)}.num{font-variant-numeric:tabular-nums}svg{display:block;max-width:100%}.cv-err{color:var(--muted);padding:24px 8px;text-align:center}</style></head>'+
+    '<body><div id="root"></div><script>(function(){var ID='+j(id)+',DATA='+j(data)+',COLORS='+j(t.colors)+';'+
+    'var post=function(m){m.cv=ID;parent.postMessage(m,"*");};'+
+    'var CRUD={colors:COLORS,'+
+      'num:function(v){if(v==null)return NaN;if(typeof v==="number")return v;var s=String(v).toLowerCase().replace(/,/g,"").trim(),m=1;'+
+        'if(/\\b(cr|crore|crores)\\b/.test(s))m=1e7;else if(/\\b(l|lac|lakh|lakhs)\\b/.test(s))m=1e5;else if(/\\d\\s*k\\b/.test(s))m=1e3;var x=parseFloat(s.replace(/[^0-9.\\-]/g,""));return isNaN(x)?NaN:x*m;},'+
+      'fmt:function(n){return (Math.round(n*100)/100).toLocaleString("en-IN");},money:function(n){return "\u20b9"+Math.round(n).toLocaleString("en-IN");},'+
+      'date:function(v){if(!v)return null;var d=typeof v==="number"?new Date(v):new Date(String(v));return isNaN(d)?null:d;},'+
+      'esc:function(s){return String(s==null?"":s).replace(/[&<>"\']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","\'":"&#39;"}[c];});},'+
+      'open:function(id){post({open:String(id)});}};'+
+    'var root=document.getElementById("root");'+
+    'try{(function(records,root,CRUD){'+safeCode+'\n;if(typeof render==="function")render(records,root,CRUD);})(DATA,root,CRUD);}'+
+    'catch(e){root.innerHTML="<div class=cv-err>This view couldn\u2019t be drawn \u2014 ask CRUD to fix it.</div>";post({error:String(e&&e.message||e)});}'+
+    'var h=function(){post({h:Math.ceil(document.documentElement.scrollHeight)});};h();setTimeout(h,120);setTimeout(h,600);'+
+    'if(window.ResizeObserver)new ResizeObserver(h).observe(document.body);})();<\/script></body></html>'; }
+function mountCustomViews(){
+  document.querySelectorAll('#canvas iframe.cv-frame:not([srcdoc])').forEach(f=>{ const job=cvFrames[f.dataset.cv]; if(job) f.srcdoc=cvDoc(f.dataset.cv,job.code,job.recs); }); }
+window.addEventListener('message',e=>{ const d=e.data; if(!d||typeof d!=='object'||!d.cv||!cvFrames[d.cv]) return;
+  const f=document.querySelector('iframe.cv-frame[data-cv="'+d.cv+'"]'); if(!f||e.source!==f.contentWindow) return;
+  if(typeof d.h==='number') f.style.height=Math.max(80,Math.min(d.h,6000))+'px';
+  if(d.open){ const r=ws().records.find(x=>x.id===d.open); if(r) openSheet('<h3>'+esc(recTitle(r))+'</h3><div class="note" style="margin:-6px 0 8px">in '+esc(r.section)+' · changes save as you go</div>'+editorHTML(r,true)); }
+  if(d.error) console.warn('[custom view]',d.error); });
 const VIEW_RENDER={
+  custom(recs,v){
+    if(!v.code) return '<div class="empty-note" style="padding:36px 12px">'+(v.spec?'This view is being made — try again in a moment.':'Describe this view and CRUD will build it.')+'</div>';
+    const id='cv'+(++cvSeq); cvFrames[id]={code:v.code,recs};
+    for(const k of Object.keys(cvFrames)) if(+k.slice(2)<cvSeq-20) delete cvFrames[k];
+    return '<div class="cv"><iframe class="cv-frame" data-cv="'+id+'" sandbox="allow-scripts" title="'+esc(v.name)+'" loading="eager"></iframe></div>'; },
   list(recs,v,name,kind){
     if(!v.groupBy) return '<div class="cards">'+kindCards(recs,kind,v)+'</div>';
     const m=v.measure||detectMeasure(recs), money=m&&isMoneyField(recs,m);
@@ -1757,9 +1834,10 @@ const VIEW_RENDER={
     const cols=(v.fields&&v.fields.length?v.fields:fieldsOf(recs).slice(0,60)); // all columns; the table scrolls sideways
     const num=cols.map(c=>isNumField(recs,c)), money=cols.map(c=>isMoneyField(recs,c));
     const sortI=c=>v.sortBy===c?(v.sortDir==='asc'?' ↑':' ↓'):'';
-    let h='<div class="tbl-wrap"><table class="tbl"><thead><tr>'+cols.map((c,i)=>'<th data-sortcol="'+esc(c)+'" class="'+(num[i]?'num':'')+'">'+esc(c)+sortI(c)+'</th>').join('')+'</tr></thead><tbody>';
-    h+=recs.map(r=>'<tr data-id="'+r.id+'" class="'+hlClass(r,v).trim()+'">'+cols.map((c,i)=>'<td class="'+(num[i]?'num':'')+'">'+fmtCell(c,val(r,c))+'</td>').join('')+'</tr>').join('');
-    if(num.some(Boolean)) h+='<tr class="tot">'+cols.map((c,i)=>'<td class="'+(num[i]?'num':'')+'">'+(i===0?'Total':num[i]&&!/rate|price|age/i.test(c)?fmtNum(aggregate(recs,'sum',c),money[i]):'')+'</td>').join('')+'</tr>';
+    let h='<div class="hint" style="margin:0 0 8px">Tap any cell to edit it</div><div class="tbl-wrap"><table class="tbl"><thead><tr>'+cols.map((c,i)=>'<th data-sortcol="'+esc(c)+'" class="'+(num[i]?'num':'')+'">'+esc(c)+sortI(c)+'</th>').join('')+'<th class="open-c"></th></tr></thead><tbody>';
+    h+=recs.map(r=>'<tr data-id="'+r.id+'" class="'+hlClass(r,v).trim()+'">'+cols.map((c,i)=>'<td data-k="'+esc(c)+'" class="'+(num[i]?'num':'')+'">'+fmtCell(c,val(r,c))+'</td>').join('')+
+      '<td class="open-c"><button class="open-rec" data-open-rec="'+r.id+'" aria-label="Open record">'+svg('chevR')+'</button></td></tr>').join('');
+    if(num.some(Boolean)) h+='<tr class="tot">'+cols.map((c,i)=>'<td class="'+(num[i]?'num':'')+'">'+(i===0?'Total':num[i]&&!/rate|price|age/i.test(c)?fmtNum(aggregate(recs,'sum',c),money[i]):'')+'</td>').join('')+'<td></td></tr>';
     return h+'</tbody></table></div>'; },
   board(recs,v,name,kind,all){
     const by=v.groupBy||detectStage(all)||'Status', m=v.measure, money=m&&isMoneyField(all,m);
@@ -1962,6 +2040,8 @@ function exportCSV(name){ const v=activeView(name); const recs=sortRecs(applyFil
   const cols=[...fieldsOf(recs),'Recorded by','Recorded at']; const q=x=>{ const s=String(x==null?'':x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
   const csv=[cols.map(q).join(',')].concat(recs.map(r=>cols.map(c=>c==='Recorded by'?q(r.author):c==='Recorded at'?q(new Date(r.createdAt).toISOString()):q(r.fields[c])).join(','))).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'})); a.download=name.replace(/[^\w -]/g,'')+'.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500); toast('Exported '+recs.length+' rows'); }
+function askForView(){ const t=(($('#vAsk')||{}).value||'').trim(); if(!t){ toast('Describe the view you want'); return; }
+  closeSheet(); sendMessage(t); }
 function viewClick(e){
   if(Date.now()-dragJustEnded<350){ e.preventDefault(); return true; }
   const vt=e.target.closest('[data-view]'); if(vt){ setActiveView(view.section,vt.dataset.view); renderCanvas(); return true; }
@@ -1980,7 +2060,7 @@ function renderCanvas(){
   if(view.mode==='home' || !w.order.length){ renderWelcome(); return; }
   if(!view.section || !w.sections[view.section]) view.section=w.order[0];
   const sort=w.sections[view.section] && w.sections[view.section].sort;
-  c.innerHTML=renderViewArea(view.section,kindOf(view.section));
+  c.innerHTML=renderViewArea(view.section,kindOf(view.section)); mountCustomViews();
   c.querySelectorAll('[data-id]').forEach(el=>{ if(recentIds.has(el.dataset.id)) (el.closest('.tcard')||el).classList.add('enter'); });
   countUp();
 }
@@ -2277,7 +2357,7 @@ async function sendMessage(text, images, thumbs){
   const uploads=hasImg?(await Promise.all(images.map(makeUpload))).filter(Boolean):[];
   let out;
   try{
-    const viewing=(view.mode==='list'&&view.section&&w.sections[view.section])?{section:view.section,view:(()=>{ const v=Object.assign({},activeView(view.section)); delete v.saved; delete v.custom; return v; })()}:null;
+    const viewing=(view.mode==='list'&&view.section&&w.sections[view.section])?{section:view.section,view:(()=>{ const v=Object.assign({},activeView(view.section)); delete v.saved; delete v.custom; delete v.code; return v; })()}:null;
     out=await api('POST','/workspaces/'+w.id+'/messages',{text,images:uploads,thumbs:thumbs||[],contextRecordId:ctxId,viewing});
   }catch(e){
     const i=w.messages.indexOf(temp); if(i>=0) w.messages.splice(i,1);
@@ -2352,7 +2432,7 @@ function startFieldEdit(el){
 
 /* ---------------- Sheets ---------------- */
 function openSheet(html){ const s=$('#sheet'); s.innerHTML='<div class="grab"></div>'+html; $('#sheetScrim').hidden=false; }
-function closeSheet(){ $('#sheetScrim').hidden=true; }
+function closeSheet(){ $('#sheetScrim').hidden=true; if(renderDeferred&&!editingNow()){ renderDeferred=false; render(); } }
 function workspaceSheet(){
   const owner=ws().role==='owner';
   openSheet('<h3>Workspaces</h3>'+
@@ -2454,14 +2534,13 @@ function subLineHL(r,q){ const skip=new Set([...TITLE_KEYS,'Status']); const par
 function bindRes(){ $('#sRes').querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openRecord(el.dataset.open)); }
 
 /* ---------------- Voice ----------------
-   Tap the mic to start and tap again to finish, or hold it and let go. Either way the words land in
-   the composer to check and edit — nothing is sent until you press send.
+   Tap the mic to start and tap again to finish. The words land in the composer to check and edit —
+   nothing is sent until you press send.
    Every recording has a session number. Once it is finished, cancelled or sent, anything the
    recogniser still reports is ignored, so sent text can never reappear in the composer. */
 const VOICE_MSG='Microphone access is blocked — allow it for this site in your browser settings.';
 const VOICE_UNSUPPORTED='Voice typing isn’t supported in this browser — try Chrome or Safari.';
 const IS_ANDROID=/Android/i.test(navigator.userAgent);
-const HOLD_MS=380;
 var voice={on:false,session:0,rec:null,base:'',done:'',stopping:false,blocked:false,restarts:0,downAt:0,mode:null};
 function setListening(on,hint){
   $('#listening').hidden=!on; const mb=$('#micBtn'); mb.classList.toggle('rec',on);
@@ -2564,23 +2643,17 @@ function cancelVoice(){
   if(!voice.on) return; voice.on=false; voice.session++;
   try{ voice.rec&&voice.rec.abort(); }catch(e){} setListening(false); }
 function bindMic(){
-  const mb=$('#micBtn'); let holdHint=null;
+  const mb=$('#micBtn');
   mb.addEventListener('contextmenu',e=>e.preventDefault());
-  mb.addEventListener('pointerdown',e=>{
-    if(e.button>0) return; e.preventDefault(); // don't move focus or open the keyboard
-    if(voice.on){ voice.mode=null; stopVoice(); return; }
-    if(!startVoice()) return;
-    voice.mode='press'; voice.downAt=Date.now(); try{ mb.setPointerCapture(e.pointerId); }catch(_){}
-    clearTimeout(holdHint); holdHint=setTimeout(()=>{ if(voice.mode==='press'&&voice.on) setListening(true,'Listening… let go when done'); },HOLD_MS); });
-  mb.addEventListener('pointerup',()=>{
-    if(voice.mode!=='press') return; voice.mode=null; clearTimeout(holdHint);
-    if(!voice.on) return;
-    if(Date.now()-voice.downAt>=HOLD_MS) stopVoice();          // held to talk: letting go finishes
-    else setListening(true,'Listening… tap ■ when done'); });   // tapped: keeps listening
-  // A system prompt (e.g. microphone permission) can cancel the press: keep listening, tap to finish.
-  mb.addEventListener('pointercancel',()=>{ if(voice.mode!=='press') return; voice.mode=null; clearTimeout(holdHint); if(voice.on) setListening(true,'Listening… tap ■ when done'); });
-  // Keyboard (Enter/Space on the focused button) toggles.
-  mb.addEventListener('click',e=>{ if(e.detail!==0) return; if(voice.on) stopVoice(); else if(startVoice()) setListening(true,'Listening… press again when done'); });
+  // Pressing the mic shouldn't move focus or open the keyboard.
+  mb.addEventListener('pointerdown',e=>{ if(e.button<=0) e.preventDefault(); });
+  mb.addEventListener('mousedown',e=>e.preventDefault());
+  // Tap to start, tap again to finish. One click event covers touch, mouse and keyboard; taps reported
+  // twice in quick succession (some phones send both a touch and a click) count once.
+  mb.addEventListener('click',e=>{ e.preventDefault();
+    const now=Date.now(); if(now-(voice.lastTap||0)<500) return; voice.lastTap=now;
+    if(voice.on){ stopVoice(); return; }
+    if(startVoice()) setListening(true,'Listening… tap ■ when done'); });
   document.addEventListener('visibilitychange',()=>{ if(document.hidden) stopVoice(); });
 }
 
@@ -2717,7 +2790,10 @@ function submitComposer(){
 /* ---------------- Viewport fit (keyboard) ---------------- */
 function fit(){ const vv=window.visualViewport; const app=$('#app');
   if(vv){ app.style.height=vv.height+'px'; app.style.transform='translateY('+vv.offsetTop+'px)'; }
-  else { app.style.height='100%'; app.style.transform=''; } }
+  else { app.style.height='100%'; app.style.transform=''; }
+  // Sheets live outside #app: keep them inside the visible area too (above the keyboard).
+  for(const id of ['sheetScrim','searchScrim']){ const sc=document.getElementById(id); if(!sc) continue;
+    if(vv){ sc.style.top=vv.offsetTop+'px'; sc.style.height=vv.height+'px'; sc.style.bottom='auto'; } else { sc.style.top=''; sc.style.height=''; sc.style.bottom=''; } } }
 
 /* ---------------- Events ---------------- */
 function bind(){
@@ -2757,7 +2833,11 @@ function bind(){
     if(e.target.closest('#afAdd')){ addField(); return; }
     if(e.target.closest('#updBtn')){ $('#input').focus(); collapseChat(); toast('Now type what to change'); return; }
     const del=e.target.closest('#delBtn'); if(del){ armDelete(del); return; }
-    const card=e.target.closest('[data-id]'); if(card){ openRecord(card.dataset.id); return; }
+    const openR=e.target.closest('[data-open-rec]'); if(openR){ closeInlineEditors(true); openRecord(openR.dataset.openRec); return; }
+    if(e.target.closest('[data-ie-done]')){ closeInlineEditors(); return; }
+    if(e.target.closest('.ie')) return;                       // taps inside an open editor
+    const td=e.target.closest('.tbl td[data-k]'); if(td){ startCellEdit(td); return; }
+    const card=e.target.closest('[data-id]'); if(card){ editInPlace(card); return; }
   });
   $('#canvas').addEventListener('input',e=>{ if(e.target.id==='afK'||e.target.id==='afV'){ const k=$('#afK'),v=$('#afV'); if(k&&v) $('#afAdd').disabled=!(k.value.trim()&&v.value.trim()); } });
   $('#canvas').addEventListener('keydown',e=>{ if((e.target.id==='afK'||e.target.id==='afV')&&e.key==='Enter'){ e.preventDefault(); addField(); } });
@@ -2787,6 +2867,88 @@ function bind(){
 
   if(window.visualViewport){ window.visualViewport.addEventListener('resize',fit); window.visualViewport.addEventListener('scroll',fit); }
   window.addEventListener('orientationchange',()=>setTimeout(fit,200));
+}
+/* ---------------- Editing in place ----------------
+   Tap a table cell to edit it right there; tap a card to open it up in place with every field editable.
+   Other views (board, calendar, ledger…) use a quick-edit sheet over the same view. Each field saves when
+   you leave it (or press Enter). While a field is being edited the composer steps aside, the field is
+   kept in the middle of what's visible above the keyboard, and live updates wait until you're done. */
+let renderDeferred=false, editBlurT=null;
+const EDIT_SEL='.ie-in,.cell-in,.ie-newk,.ie-newv,.fval-input,#afK,#afV';
+function editingNow(){ const a=document.activeElement; return !!(a&&a.matches&&a.matches(EDIT_SEL)); }
+function editFields(r){ const keys=Object.keys(r.fields);
+  for(const k of fieldsOf(ws().records.filter(x=>x.section===r.section))) if(!keys.includes(k)&&keys.length<40) keys.push(k);
+  return keys; }
+function editorHTML(r,inSheet){
+  const rows=editFields(r).map(k=>{ const v=r.fields[k]==null?'':String(r.fields[k]), long=v.length>44||/note|address|description|remark|comment/i.test(k);
+    const attrs=' data-rid="'+r.id+'" data-k="'+esc(k)+'" autocomplete="off" autocapitalize="sentences" enterkeyhint="next"';
+    return '<label class="ie-row"><span class="ie-k">'+esc(k)+'</span>'+(long?'<textarea class="ie-in" rows="2"'+attrs+'>'+esc(v)+'</textarea>':'<input class="ie-in"'+attrs+' value="'+esc(v)+'">')+'</label>'; }).join('');
+  return '<div class="ie'+(inSheet?' ie-sheet':'')+'" data-for="'+r.id+'">'+rows+
+    '<div class="ie-row ie-add"><input class="ie-newk" data-rid="'+r.id+'" placeholder="New field" autocomplete="off" enterkeyhint="next"><input class="ie-newv" data-rid="'+r.id+'" placeholder="Value" autocomplete="off" enterkeyhint="done"></div>'+
+    '<div class="ie-foot"><button class="btn" data-open-rec="'+r.id+'">'+svg('chevR')+'Full record</button><button class="btn primary" data-ie-done>Done</button></div></div>'; }
+function editInPlace(card){
+  const id=card.dataset.id, r=ws().records.find(x=>x.id===id); if(!r) return;
+  const host=card.closest('.tcard')||card;
+  if(host.closest('.cards')||host.classList.contains('tcard')){          // list cards: open up right here
+    const open=host.nextElementSibling&&host.nextElementSibling.classList.contains('ie')&&host.nextElementSibling.dataset.for===id;
+    closeInlineEditors(true); if(open){ render(); return; }
+    host.classList.add('ie-open'); host.insertAdjacentHTML('afterend',editorHTML(r,false));
+    const first=host.nextElementSibling.querySelector('.ie-in'); host.scrollIntoView({block:'nearest',behavior:'smooth'});
+    if(first&&!matchMedia('(pointer: coarse)').matches) first.focus();
+    return; }
+  openSheet('<h3>'+esc(recTitle(r))+'</h3><div class="note" style="margin:-6px 0 8px">in '+esc(r.section)+' · changes save as you go</div>'+editorHTML(r,true)); }
+function closeInlineEditors(silent){
+  document.querySelectorAll('#canvas .ie').forEach(x=>x.remove()); document.querySelectorAll('.ie-open').forEach(x=>x.classList.remove('ie-open'));
+  if(!silent){ renderDeferred=false; render(); } }
+function startCellEdit(td){
+  if(td.querySelector('.cell-in')) return;
+  const tr=td.closest('tr[data-id]'); if(!tr) return; const r=ws().records.find(x=>x.id===tr.dataset.id); if(!r) return;
+  const k=td.dataset.k, cur=r.fields[k]==null?'':String(r.fields[k]);
+  td.classList.add('editing'); td.innerHTML='<input class="cell-in" data-rid="'+r.id+'" data-k="'+esc(k)+'" value="'+esc(cur)+'" autocomplete="off" enterkeyhint="done">';
+  const inp=td.querySelector('input'); inp.focus(); try{ inp.setSelectionRange(cur.length,cur.length); }catch(e){}
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } if(e.key==='Escape'){ inp.value=cur; inp.blur(); } });
+  inp.addEventListener('blur',()=>{ commitField(inp); const rr=ws().records.find(x=>x.id===r.id)||r;
+    td.classList.remove('editing'); td.innerHTML=fmtCell(k,rr.fields[k]==null?'':rr.fields[k]); editLeft(); },{once:true}); }
+// Saves one field (keeps the other fields and their order). Optimistic: the screen already shows the new value.
+function commitField(inp){
+  const r=ws().records.find(x=>x.id===inp.dataset.rid); if(!r) return;
+  const k=inp.dataset.k, v=inp.value.trim(), cur=r.fields[k]==null?'':String(r.fields[k]); if(v===cur) return;
+  const fields={}; let seen=false; for(const [fk,fv] of Object.entries(r.fields)){ if(fk===k){ seen=true; if(v) fields[fk]=v; } else fields[fk]=fv; }
+  if(!seen&&v) fields[k]=v;
+  r.fields=fields; pushFields(r.id,fields,(v?(cur?'changed ':'added ')+k:'removed '+k)); }
+function commitNewField(inp){
+  const box=inp.closest('.ie-add'); if(!box) return; const kI=box.querySelector('.ie-newk'), vI=box.querySelector('.ie-newv');
+  const k=kI.value.trim(), v=vI.value.trim(); if(!k||!v) return;
+  const r=ws().records.find(x=>x.id===kI.dataset.rid); if(!r) return;
+  const fields=Object.assign({},r.fields); fields[k]=v; r.fields=fields; kI.value=''; vI.value='';
+  box.insertAdjacentHTML('beforebegin','<label class="ie-row"><span class="ie-k">'+esc(k)+'</span><input class="ie-in" data-rid="'+r.id+'" data-k="'+esc(k)+'" value="'+esc(v)+'" autocomplete="off"></label>');
+  pushFields(r.id,fields,'added '+k); }
+async function pushFields(id,fields,change){
+  try{ const out=await api('PATCH','/records/'+id,{fields,change}); applyServerState(out.state); }
+  catch(e){ toast(e.message); }
+  if(!editingNow()&&!document.querySelector('#canvas .ie')&&$('#sheetScrim').hidden) render(); else renderDeferred=true; }
+// (renderDeferred is also honoured by closeInlineEditors / closeSheet / leaving the last field.)
+function keepInView(el){ const go=()=>{ if(document.activeElement===el) el.scrollIntoView({block:'center',behavior:'smooth'}); };
+  setTimeout(go,80); setTimeout(go,380); setTimeout(go,750); }
+// Called whenever a field loses focus: if no other field took over, the composer comes back and any
+// held-back redraw happens.
+function editLeft(){ clearTimeout(editBlurT); editBlurT=setTimeout(()=>{ if(editingNow()) return; document.body.classList.remove('editing');
+  if(renderDeferred&&!document.querySelector('#canvas .ie')&&$('#sheetScrim').hidden){ renderDeferred=false; render(); } },160); }
+function bindInlineEdit(){
+  document.addEventListener('focusin',e=>{ const t=e.target; if(!t.matches||!t.matches(EDIT_SEL)) return;
+    clearTimeout(editBlurT); document.body.classList.add('editing'); keepInView(t); });
+  document.addEventListener('focusout',e=>{ const t=e.target; if(!t.matches) return;
+    if(t.matches('.ie-in')) commitField(t);
+    if(t.matches('.ie-newk,.ie-newv')) commitNewField(t);
+    editLeft(); });
+  document.addEventListener('keydown',e=>{ const t=e.target; if(e.key==='Enter'&&!e.shiftKey&&t.id==='vAsk'){ e.preventDefault(); askForView(); return; } if(e.key!=='Enter'||!t.matches) return;
+    if(t.matches('input.ie-in,.ie-newk')){ e.preventDefault(); const all=[...t.closest('.ie').querySelectorAll('.ie-in,.ie-newk,.ie-newv')]; const n=all[all.indexOf(t)+1]; if(n) n.focus(); else t.blur(); }
+    else if(t.matches('.ie-newv')){ e.preventDefault(); t.blur(); } });
+  if(window.visualViewport) window.visualViewport.addEventListener('resize',()=>{ const a=document.activeElement; if(editingNow()) keepInView(a); });
+  $('#sheet').addEventListener('click',e=>{ const o=e.target.closest('[data-open-rec]'); if(o){ closeSheet(); openRecord(o.dataset.openRec); return; }
+    if(e.target.closest('#vAskGo')){ askForView(); return; }
+    const rm=e.target.closest('[data-rmview]'); if(rm){ const n=rm.dataset.rmview; closeSheet(); deleteView(view.section,n); toast('Removed “'+n+'”'); return; }
+    if(e.target.closest('[data-ie-done]')) closeSheet(); });
 }
 async function saveRecord(id, fields, change){
   try{ const out=await api('PATCH','/records/'+id,{fields,change}); applyServerState(out.state); }
@@ -2987,6 +3149,8 @@ function connectEvents(id){
 function scheduleRefresh(){ clearTimeout(refreshT); refreshT=setTimeout(refreshState,250); }
 async function refreshState(){
   if(!state.current||processing) return;
+  // A teammate changed something while a record is open for editing: catch up once it's closed.
+  if(editingNow()||document.querySelector('#canvas .ie')||(!$('#sheetScrim').hidden&&$('#sheet .ie'))){ renderDeferred=true; clearTimeout(refreshT); refreshT=setTimeout(refreshState,1500); return; }
   try{
     const out=await api('GET','/workspaces/'+state.current+'/state'); applyServerState(out.state);
     if(view.mode==='detail'&&!ws().records.find(r=>r.id===view.recordId)) view={mode:'list',section:view.section,recordId:null};
@@ -3049,7 +3213,7 @@ async function logout(){
 
 /* ---------------- Boot ---------------- */
 function boot(){
-  bindTips(); bindBoardDrag();
+  bindTips(); bindBoardDrag(); bindInlineEdit();
   const jm=location.pathname.match(/\/app\/join\/([A-Za-z0-9-]+)/);
   if(jm){ setPendingJoin(jm[1].toLowerCase()); try{ history.replaceState(null,'','/app'); }catch(e){} }
   loadPrefs(); applyTheme(); bind(); bindAuth(); fit();

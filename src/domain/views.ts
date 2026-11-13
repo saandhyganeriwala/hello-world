@@ -12,6 +12,8 @@ export type View = {
   metrics: { label: string; agg: string; field: string; filterField: string; filterOp: string; filterValue: string }[];
   highlight: { field: string; op: string; value: string; color: string }[];
   limit: number;
+  /** custom views: what the person asked for, and the code that draws it (runs sandboxed in the app). */
+  spec: string; code: string;
 };
 
 const str = (v: unknown, max = 80) => (typeof v === "string" ? v.trim().slice(0, max) : typeof v === "number" ? String(v) : "");
@@ -22,7 +24,7 @@ const OPS = [...FILTER_OPS] as string[];
 
 const TYPE_NAMES: Record<string, string> = {
   list: "List", table: "Table", board: "Board", funnel: "Funnel", calendar: "Calendar", agenda: "Agenda",
-  chart: "Chart", metrics: "Overview", tracker: "Tracker", ledger: "Ledger", leaderboard: "Top",
+  chart: "Chart", metrics: "Overview", tracker: "Tracker", ledger: "Ledger", leaderboard: "Top", custom: "Custom",
 };
 
 export function sanitizeView(raw: any): View | null {
@@ -52,6 +54,8 @@ export function sanitizeView(raw: any): View | null {
       ...filter(h), color: oneOf(h?.color, ["good", "warn", "danger", "accent"], "accent"),
     })).filter((h: any) => h.field),
     limit: Math.min(100, Math.round(num(raw.limit))),
+    spec: type === "custom" ? str(raw.spec, 3000) : "",
+    code: type === "custom" && typeof raw.code === "string" ? raw.code.slice(0, 60000) : "",
   };
 }
 

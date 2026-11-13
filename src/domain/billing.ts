@@ -48,7 +48,8 @@ export async function recordUsage(workspaceId: string, userId: string | null, u:
     }).where(eq(users.id, w.owner));
   }
 }
-const isAction = (label: string) => label !== "transcribe";
+// A voice note's transcription and drawing a custom view's code ride along with the message that caused them.
+const isAction = (label: string) => label !== "transcribe" && label !== "custom-view";
 
 export type Billing = {
   plan: "free" | "pro"; planUntil: number | null; periodEnds: number | null; ok: boolean;
