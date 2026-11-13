@@ -8,13 +8,14 @@ import { env } from "../env.js";
 import { isAdmin } from "./admin.js";
 import { rzp } from "./billing.js";
 import { deleteAccount } from "../domain/account.js";
+import { FEEDBACK_MAX, saveFeedback } from "../domain/feedback.js";
 import { invalidIdentityMessage, normalizeIdentity } from "../lib/identity.js";
 import { OtpError, requestOtp, verifyOtp } from "../auth/otp.js";
 import { OtpSendError } from "../auth/errors.js";
 import { createSession, destroySession, requireUser, type AppEnv } from "../auth/session.js";
 import { aiEnabled, planImport } from "../ai/claude.js";
 import { createWorkspace, getMembership, listWorkspaces, loadState, newInviteCode, nextColor } from "../domain/state.js";
-import { processMessage, type ImageInput } from "../domain/messages.js";
+import { processMessage, type DocInput, type ImageInput } from "../domain/messages.js";
 import { applyImport, fallbackPlan, type Sheet } from "../domain/import.js";
 import { cleanKey, esc } from "../domain/helpers.js";
 import { removeView, sanitizeView, upsertView } from "../domain/views.js";
@@ -75,6 +76,7 @@ api.post("/auth/logout", async (c) => {
 // ---------- authenticated ----------
 
 api.use("/me", requireUser);
+api.use("/feedback", requireUser);
 api.use("/bootstrap", requireUser);
 api.use("/workspaces", requireUser);
 api.use("/workspaces/*", requireUser);
@@ -255,6 +257,18 @@ api.delete("/workspaces/:id/members/:memberId", async (c) => {
   return c.json({ state: await stateOf(c, c.req.param("id")) });
 });
 
+// ----- feedback (Menu → Send feedback; admins read it on /admin) -----
+
+api.post("/feedback", async (c) => {
+  const b = await body(c), user = c.get("user");
+  const text = str(b.text, FEEDBACK_MAX);
+  if (text.length < 2) return c.json({ error: "Write a few words first." }, 400);
+  let workspaceId: string | null = str(b.workspaceId, 64) || null;
+  if (workspaceId && !(await getMembership(user.id, workspaceId).catch(() => null))) workspaceId = null;
+  await saveFeedback({ userId: user.id, workspaceId, text, page: str(b.page, 120), userAgent: c.req.header("user-agent") || "" });
+  return c.json({ ok: true });
+});
+
 // ----- messages: the core flow -----
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -265,15 +279,21 @@ api.post("/workspaces/:id/messages", bigBody, async (c) => {
   const images: ImageInput[] = (Array.isArray(b.images) ? b.images : []).slice(0, 4)
     .filter((im: any) => im && typeof im.data === "string" && IMAGE_TYPES.has(im.mediaType) && im.data.length < 7_000_000)
     .map((im: any) => ({ data: im.data.replace(/^data:[^,]+,/, ""), mediaType: im.mediaType }));
-  const thumbs: string[] = (Array.isArray(b.thumbs) ? b.thumbs : []).slice(0, 4)
-    .filter((t: unknown) => typeof t === "string" && t.startsWith("data:image/") && t.length < 150_000);
+  // Shared files: PDFs up to ~10 MB, and plain text (a WhatsApp chat export, a .txt) up to 150,000 characters.
+  const docs: DocInput[] = (Array.isArray(b.docs) ? b.docs : []).slice(0, 3)
+    .filter((d: any) => d && typeof d.data === "string" && d.data.length > 0 &&
+      ((d.mediaType === "application/pdf" && d.data.length < 14_000_000) || (d.mediaType === "text/plain" && d.data.length <= 150_000)))
+    .map((d: any) => ({ name: str(d.name, 120) || (d.mediaType === "application/pdf" ? "Document.pdf" : "Text"), mediaType: d.mediaType,
+      data: d.mediaType === "application/pdf" ? d.data.replace(/^data:[^,]+,/, "") : d.data }));
+  const thumbs: string[] = (Array.isArray(b.thumbs) ? b.thumbs : []).slice(0, 6)
+    .filter((t: unknown) => typeof t === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(t) && t.length < 150_000);
   const text = str(b.text, 4000);
-  if (!text && !images.length) return c.json({ error: "Type something or attach a screenshot." }, 400);
+  if (!text && !images.length && !docs.length) return c.json({ error: "Type something or attach a screenshot." }, 400);
 
   const out = await processMessage(
     { workspaceId: id, userId: user.id, authorName: user.name || "Someone" },
     {
-      text, images, thumbs, contextRecordId: str(b.contextRecordId, 64) || null, clientId: c.get("clientId"),
+      text, images, docs, thumbs, contextRecordId: str(b.contextRecordId, 64) || null, clientId: c.get("clientId"),
       viewing: b.viewing && typeof b.viewing.section === "string"
         ? { section: str(b.viewing.section, 80), view: sanitizeView(b.viewing.view) } : null,
     },

@@ -35,6 +35,8 @@ app.onError((err, c) => {
 });
 
 // The app lives at /app; the landing page is everything else.
+// Shared to the installed web app before its service worker was running: nothing to keep, just open the app.
+app.post("/app/share-target", (c) => c.redirect("/app", 303));
 app.get("/app", serveStatic({ path: "./public/app.html" }));
 app.get("/app/*", serveStatic({ path: "./public/app.html" }));
 // Policy pages (Razorpay asks for these): /terms, /privacy, /refunds, /contact, /shipping.

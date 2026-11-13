@@ -1,4 +1,4 @@
-// Sends the login code by email, through Brevo or Resend (EMAIL_PROVIDER, or whichever key is set).
+// Sends email (login codes, admin notices), through Brevo or Resend (EMAIL_PROVIDER, or whichever key is set).
 //   Brevo:  POST https://api.brevo.com/v3/smtp/email   api-key: <BREVO_API_KEY>
 //   Resend: POST https://api.resend.com/emails         Authorization: Bearer <RESEND_API_KEY>
 // EMAIL_FROM ("CRUD.chat <login@crud.chat>") must use a domain (or sender) verified with that provider.
@@ -26,27 +26,42 @@ function bodies(code: string) {
 }
 
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
-  const provider = env.emailProvider;
-  if (!provider) throw new OtpSendError("Email login isn't configured yet.");
+  if (!env.emailProvider) throw new OtpSendError("Email login isn't configured yet.");
   const { text, html, subject } = bodies(code);
+  if (!(await sendEmail({ to: [to], subject, text, html, tag: "login-code" }))) {
+    throw new OtpSendError("Couldn't send the code. Try again in a minute.");
+  }
+}
+
+/** Sends one email through the configured provider. Returns false (and logs) if it couldn't. */
+export async function sendEmail(m: { to: string[]; subject: string; text: string; html: string; tag?: string; replyTo?: string }): Promise<boolean> {
+  const provider = env.emailProvider;
+  if (!provider || !m.to.length) return false;
   let res: Response;
-  if (provider === "brevo") {
-    res = await fetch(`${env.brevoBaseUrl}/smtp/email`, {
-      method: "POST",
-      headers: { "api-key": env.brevoKey, "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ sender: parseFrom(env.emailFrom), to: [{ email: to }], subject, htmlContent: html, tags: ["login-code"] }),
-      signal: AbortSignal.timeout(15_000),
-    });
-  } else {
-    res = await fetch(`${env.resendBaseUrl}/emails`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${env.resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env.emailFrom, to: [to], subject, text, html }),
-      signal: AbortSignal.timeout(15_000),
-    });
+  try {
+    if (provider === "brevo") {
+      res = await fetch(`${env.brevoBaseUrl}/smtp/email`, {
+        method: "POST",
+        headers: { "api-key": env.brevoKey, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ sender: parseFrom(env.emailFrom), to: m.to.map((email) => ({ email })), subject: m.subject, htmlContent: m.html,
+          ...(m.replyTo ? { replyTo: { email: m.replyTo } } : {}), ...(m.tag ? { tags: [m.tag] } : {}) }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } else {
+      res = await fetch(`${env.resendBaseUrl}/emails`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: env.emailFrom, to: m.to, subject: m.subject, text: m.text, html: m.html, ...(m.replyTo ? { reply_to: m.replyTo } : {}) }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    }
+  } catch (e: any) {
+    console.error(`[email] ${provider} send failed`, e?.message);
+    return false;
   }
   if (!res.ok) {
     console.error(`[email] ${provider} send failed`, res.status, (await res.text()).slice(0, 500));
-    throw new OtpSendError("Couldn't send the code. Try again in a minute.");
+    return false;
   }
+  return true;
 }

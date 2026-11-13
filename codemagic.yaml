@@ -11,6 +11,9 @@ workflows:
       # Rename here if you name the key differently there.
       app_store_connect: CRUD App Store Connect
     environment:
+      # Signs the app (chat.crud.app) and its Share Extension (chat.crud.app.share): Codemagic also picks up the
+      # profiles of extensions whose bundle IDs start with the app's. Both App IDs need the App Group
+      # group.chat.crud.app; see mobile/README.md → "Share Extension (one-time Apple setup)".
       ios_signing:
         distribution_type: app_store
         bundle_identifier: chat.crud.app

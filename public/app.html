@@ -456,6 +456,21 @@ body.editing #chat{display:none}
 .micbtn.attach{color:var(--muted)}
 .attachbar{display:flex;gap:7px;flex-wrap:wrap;padding:0 2px}
 .attachbar[hidden]{display:none}
+.sh-files{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;margin:0 -2px}
+.sh-file{flex:none;width:76px;display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);text-align:center}
+.sh-file img{width:76px;height:76px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);display:block}
+.sh-file span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-file.wide{width:auto;max-width:260px;flex-direction:row;align-items:center;gap:10px;text-align:left;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--fg)}
+.sh-file.wide .ic{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent,#141414)}
+.sh-file.wide .ic svg{width:16px;height:16px}
+.sh-file.wide small{display:block;font-size:11.5px;color:var(--muted);white-space:normal}
+.sh-file.wide>span:last-child{white-space:normal;min-width:0}
+.sh-file.bad{opacity:.6}.sh-file.bad .ic{background:var(--surface);color:var(--danger)}
+.sh-text{font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;max-height:120px;overflow:auto;background:var(--surface-2);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.sh-lbl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 4px}
+.sh-ws{max-height:34vh;overflow:auto}
+.sh-ws .row-item.on{background:var(--surface-2)}
+.sh-btns{display:flex;gap:8px;margin-top:12px}
 .athumb{position:relative;flex:none;width:44px;height:44px;border-radius:9px;overflow:hidden;border:1px solid var(--border);background:var(--surface-2)}
 .athumb img{width:100%;height:100%;object-fit:cover;display:block}
 .athumb .rm{position:absolute;top:1px;right:1px;width:17px;height:17px;border-radius:50%;border:0;
@@ -1096,7 +1111,7 @@ tr.hl-danger td{background:var(--danger-weak)} tr.hl-warn td{background:var(--wa
         <button class="sendbtn" id="sendBtn" aria-label="Send" disabled></button>
       </div>
     </div>
-    <input type="file" id="fileIn" accept="image/*,.csv,.xlsx,.xls,text/csv" multiple hidden>
+    <input type="file" id="fileIn" accept="image/*,.csv,.xlsx,.xls,text/csv,application/pdf,.pdf,.txt,text/plain" multiple hidden>
   </section>
 </div>
 
@@ -2328,7 +2343,7 @@ function renderPeek(){
   let inner='';
   if(last.images&&last.images.length) inner+='<div class="msg-imgs">'+last.images.map(u=>'<img src="'+u+'" alt="attachment">').join('')+'</div>';
   if(last.text) inner+='<div class="mtext">'+esc(last.text)+'</div>';
-  if(last.pending) inner+='<div class="working"><span class="ava bot mini think">'+eyes()+'</span>'+(last.images?'Reading your screenshot…':'Reading…')+'</div>';
+  if(last.pending) inner+='<div class="working"><span class="ava bot mini think">'+eyes()+'</span>'+(last.images?'Reading it…':'Reading…')+'</div>';
   else if(last.tag) inner+='<span class="tag"'+(last.rid?' data-open="'+last.rid+'"':'')+'>'+svg(last.tagIcon||'checkc')+esc(last.tag)+'</span>';
   peek.innerHTML='<span class="ava'+(isBot?' bot':'')+'"'+(isBot?'':' style="background:'+mem.color+'"')+'>'+(isBot?eyes():esc(initials(mem.name)))+'</span>'+
     '<div class="pk-body"><div class="who">'+esc(mem.name)+'</div>'+inner+'</div>'+
@@ -2342,8 +2357,23 @@ function goHome(){ view={mode:ws().order.length?'list':'home',section:ws().order
 function backFromDetail(){ view={mode:'list',section:view.section,recordId:null}; render(); }
 
 /* ---------------- Sending a message (Claude runs on the server) ---------------- */
+// What a file is, for attaching or sharing: an image, a PDF, a text file (e.g. a WhatsApp chat export) or a spreadsheet.
+function fileKind(f){
+  if(isSheetFile(f)) return 'sheet';
+  if(/^image\//.test(f.type||'')||/\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name||'')) return 'image';
+  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name||'')) return 'pdf';
+  if(/^text\/(plain|markdown)/.test(f.type||'')||/\.(txt|md|text|log)$/i.test(f.name||'')) return 'text';
+  return null; }
+const PDF_MAX=10*1024*1024, TEXT_MAX=150000;
+// A file becomes { image } or { doc } for the server. PDFs and text files are read by Claude as documents.
+function makeUpload(file){ const k=fileKind(file);
+  if(k==='pdf') return new Promise(resolve=>{ if(file.size>PDF_MAX){ toast(file.name+' is larger than 10 MB'); resolve(null); return; }
+    const fr=new FileReader(); fr.onload=()=>resolve({doc:{name:file.name||'Document.pdf',mediaType:'application/pdf',data:String(fr.result).split(',')[1]||''}});
+    fr.onerror=()=>resolve(null); fr.readAsDataURL(file); });
+  if(k==='text') return readText(file).then(t=>({doc:{name:file.name||'Text',mediaType:'text/plain',data:String(t).slice(0,TEXT_MAX)}})).catch(()=>null);
+  return makeImageUpload(file).then(im=>im&&{image:im}); }
 // Screenshots go up as JPEGs no larger than Claude reads (1568px on the long side).
-function makeUpload(file){ return new Promise(resolve=>{
+function makeImageUpload(file){ return new Promise(resolve=>{
   const fr=new FileReader();
   fr.onload=()=>{ const img=new Image();
     img.onload=()=>{ const max=1568; let w=img.width||max, h=img.height||max; const sc=Math.min(1,max/Math.max(w,h));
@@ -2354,21 +2384,24 @@ function makeUpload(file){ return new Promise(resolve=>{
   fr.onerror=()=>resolve(null); fr.readAsDataURL(file);
 }); }
 async function sendMessage(text, images, thumbs){
-  text=(text||'').trim(); const hasImg=!!(images&&images.length);
+  text=(text||'').trim(); const hasImg=!!(images&&images.length); // images = attached files (screenshots, PDFs, text files)
   const w=ws();
   if((!text&&!hasImg)||processing||!w.id) return;
   const ctxId=(view.mode==='detail')?view.recordId:null;
   // Show the bubble straight away; the server's copy replaces it.
   const temp={id:'tmp'+uid(),author:w.me,authorName:activeMember().name,
-    text:text||(hasImg?(images.length>1?images.length+' screenshots':'Screenshot'):''),ts:Date.now(),pending:true};
+    text:text||(hasImg?attachLabel(images):''),ts:Date.now(),pending:true};
   if(thumbs&&thumbs.length) temp.images=thumbs;
   w.messages.push(temp);
   $('#input').value=''; autosize(); processing=true; document.body.classList.add('busy'); updateSend(); renderChat(); renderPeek();
-  const uploads=hasImg?(await Promise.all(images.map(makeUpload))).filter(Boolean):[];
+  const ups=hasImg?(await Promise.all(images.map(makeUpload))).filter(Boolean):[];
+  const uploads=ups.filter(u=>u.image).map(u=>u.image), docs=ups.filter(u=>u.doc).map(u=>u.doc);
+  if(hasImg&&!ups.length&&!text){ const i=w.messages.indexOf(temp); if(i>=0) w.messages.splice(i,1);
+    processing=false; document.body.classList.remove('busy'); updateSend(); render(); toast('Couldn\u2019t read that file.'); return; }
   let out;
   try{
     const viewing=(view.mode==='list'&&view.section&&w.sections[view.section])?{section:view.section,view:(()=>{ const v=Object.assign({},activeView(view.section)); delete v.saved; delete v.custom; delete v.code; return v; })()}:null;
-    out=await api('POST','/workspaces/'+w.id+'/messages',{text,images:uploads,thumbs:thumbs||[],contextRecordId:ctxId,viewing});
+    out=await api('POST','/workspaces/'+w.id+'/messages',{text,images:uploads,docs,thumbs:thumbs||[],contextRecordId:ctxId,viewing});
   }catch(e){
     const i=w.messages.indexOf(temp); if(i>=0) w.messages.splice(i,1);
     if(text&&!$('#input').value){ $('#input').value=text; autosize(); }
@@ -2396,6 +2429,8 @@ async function sendMessage(text, images, thumbs){
   if(view.mode==='list') $('#canvas').scrollTop=0;
   setTimeout(()=>{recentIds=new Set();},1400);
 }
+function attachLabel(files){ const n=files.filter(f=>fileKind(f)==='image').length, rest=files.filter(f=>fileKind(f)!=='image');
+  return [n?(n>1?n+' screenshots':'Screenshot'):'',...rest.map(f=>f.name||'File')].filter(Boolean).join(' · '); }
 function applyEffect(e){ if(e&&e.type==='theme'){ state.theme=e.mode; savePrefs(); applyTheme(); } }
 
 /* ---------------- Look: the accent is shared by the workspace, light/dark is personal ---------------- */
@@ -2486,6 +2521,7 @@ function menuSheet(){
     '<button class="row-item" id="mTeam"><span>'+svg('people')+'</span><span>Team<span class="sub">'+n+' member'+(n>1?'s':'')+'</span></span></button>'+
     '<button class="row-item" id="mWs"><span>'+svg('swap')+'</span><span>Switch or add workspace</span></button>'+
     '<button class="row-item" id="mSearch"><span>'+svg('search')+'</span><span>Search records</span></button>'+
+    '<button class="row-item" id="mFeedback"><span>'+svg('chat')+'</span><span>Send feedback<span class="sub">Ideas, problems, anything</span></span></button>'+
     '<button class="row-item" id="mName"><span>'+svg('person')+'</span><span>'+esc(u.name||'Your name')+'<span class="sub">'+esc(u.email||u.phone||'')+'</span></span></button>'+
     '<div class="sdiv"></div>'+
     '<button class="row-item danger" id="mLogout"><span>'+svg('logout')+'</span><span>Log out</span></button>'+
@@ -2497,6 +2533,28 @@ function nameSheet(){
   const go=async()=>{ const v=inp.value.trim(); if(!v) return;
     try{ const out=await api('PATCH','/me',{name:v}); state.user=out.user; closeSheet(); await refreshState(); }catch(e){ toast(e.message); } };
   $('#myNameBtn').onclick=go; inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();go();} });
+}
+
+/* ---------------- Feedback (read by admins on /admin) ---------------- */
+let fbDraft='';
+function feedbackSheet(){
+  openSheet('<h3>Send feedback</h3><div class="note" style="margin-bottom:10px">What’s working, what isn’t, what you wish CRUD.chat did. It goes straight to the people who build it.</div>'+
+    '<div class="vask" style="margin:0"><textarea id="fbText" rows="5" maxlength="4000" placeholder="Type your feedback…"></textarea></div>'+
+    '<button class="btn primary" id="fbSend" style="width:100%;justify-content:center">Send feedback</button>');
+  const t=$('#fbText'); t.value=fbDraft; t.addEventListener('input',()=>{ fbDraft=t.value; }); setTimeout(()=>{ try{ t.focus(); }catch(e){} },60);
+}
+function feedbackPage(){
+  if(view.mode==='detail') return (view.section||'')+' · a record';
+  if(view.mode==='list'&&view.section){ const v=activeView(view.section); return view.section+(v&&v.name?' · '+v.name:''); }
+  return view.mode||'';
+}
+async function sendFeedback(btn){
+  const t=$('#fbText'), text=(t&&t.value||'').trim();
+  if(text.length<2){ toast('Write a few words first'); try{ t.focus(); }catch(e){} return; }
+  btn.disabled=true; btn.textContent='Sending…';
+  try{ await api('POST','/feedback',{text,workspaceId:ws().id||null,page:feedbackPage()}); }
+  catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Send feedback'; return; }
+  fbDraft=''; closeSheet(); toast('Thanks! Your feedback was sent.');
 }
 
 /* ---------------- Search ---------------- */
@@ -2700,7 +2758,18 @@ function insertMention(name){ const inp=$('#input'); const st=mentionToken(); if
 
 /* ---------------- Screenshots / image attachments ---------------- */
 let pendingImages=[], pendingThumbs=[];
-function makeThumb(file){ return new Promise(resolve=>{
+// A small tile for a file that isn't a picture: a coloured badge (PDF / TXT) and the file name.
+function fileTile(file){ try{
+  const k=fileKind(file), cv=document.createElement('canvas'); cv.width=192; cv.height=192; const g=cv.getContext('2d');
+  g.fillStyle='#FFFEFA'; g.fillRect(0,0,192,192);
+  g.fillStyle=k==='pdf'?'#D23A2E':'#0E8A8A'; g.beginPath(); (g.roundRect?g.roundRect(18,18,76,40,10):g.rect(18,18,76,40)); g.fill();
+  g.fillStyle='#fff'; g.font='700 24px system-ui,-apple-system,sans-serif'; g.textBaseline='middle'; g.fillText(k==='pdf'?'PDF':'TXT',30,39);
+  g.fillStyle='#141414'; g.font='600 21px system-ui,-apple-system,sans-serif'; g.textBaseline='alphabetic';
+  const name=(file.name||'File').replace(/\.[a-z0-9]+$/i,''); const words=name.split(/(?=[\s_.-])/); let line='', y=100, lines=0;
+  for(const w of words){ const t=line+w; if(g.measureText(t).width>158&&line){ g.fillText(line.trim(),18,y); y+=27; line=w.trimStart(); if(++lines>=3) break; } else line=t; }
+  if(lines<3&&line) g.fillText(line.trim().slice(0,16),18,y);
+  return cv.toDataURL('image/jpeg',0.8); }catch(e){ return ''; } }
+function makeThumb(file){ if(fileKind(file)!=='image') return Promise.resolve(fileTile(file)); return new Promise(resolve=>{
   const fr=new FileReader();
   fr.onload=()=>{ const img=new Image();
     img.onload=()=>{ const max=256; let w=img.width||max, h=img.height||max; const sc=Math.min(1,max/Math.max(w,h));
@@ -2710,12 +2779,18 @@ function makeThumb(file){ return new Promise(resolve=>{
     img.onerror=()=>resolve(fr.result); img.src=fr.result; };
   fr.onerror=()=>resolve(''); fr.readAsDataURL(file);
 }); }
+// One message carries up to 4 files, at most 3 of them PDFs or text files.
+function canAttach(list,f){ const docs=list.filter(x=>fileKind(x)!=='image').length;
+  if(list.length>=4){ toast('Up to 4 files at a time'); return false; }
+  if(fileKind(f)!=='image'&&docs>=3){ toast('Up to 3 documents at a time'); return false; }
+  if(fileKind(f)==='pdf'&&f.size>PDF_MAX){ toast(f.name+' is larger than 10 MB'); return false; }
+  return true; }
 function isSheetFile(f){ return /\.(csv|xlsx|xls)$/i.test(f.name) || /csv|spreadsheetml|ms-excel/i.test(f.type||''); }
 async function onFile(e){
   const all=[...(e.target.files||[])]; e.target.value='';
-  const sheets=all.filter(isSheetFile), imgs=all.filter(f=>/^image\//.test(f.type)&&!isSheetFile(f));
+  const sheets=all.filter(isSheetFile), atts=all.filter(f=>['image','pdf','text'].includes(fileKind(f)));
   if(sheets.length) importFiles(sheets);         // data files import immediately into tabs
-  for(const f of imgs){ if(pendingImages.length>=4){ toast('Up to 4 images at a time'); break; }
+  for(const f of atts){ if(!canAttach(pendingImages,f)) break;
     pendingImages.push(f); pendingThumbs.push(await makeThumb(f)); renderAttach(); updateSend(); }
   try{ $('#input').focus(); }catch(e){}
 }
@@ -2826,6 +2901,91 @@ function submitComposer(){
   pendingImages=[]; pendingThumbs=[]; renderAttach();
   $('#mention').hidden=true; mentionOpen=false;
   sendMessage(t, imgs, thumbs);
+}
+
+/* ---------------- Share into CRUD.chat ----------------
+   From the phone's share sheet (photos, PDFs, Excel/CSV files, text, links), like sharing into WhatsApp:
+   - iOS app: the Share Extension saves the items, then opens the app (see mobile/ios/App/ShareExtension).
+   - Android app: MainActivity receives the share intent (see ShareInPlugin.java).
+   - Installed web app on Android: the manifest's share_target posts to /app/share-target; sw.js keeps the files.
+   The person picks the workspace (if they have more than one), can add a note, and sends. */
+let shareQueue=null, shareTarget=null, sharePulling=false;
+function b64ToFile(data,type,name){ const bin=atob(data||''), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+  return new File([u],name||'file',{type:type||'application/octet-stream'}); }
+// items: [{ name, type, data (base64) }] files, or [{ text }] for shared text and links
+function receiveShare(files,texts){
+  files=(files||[]).filter(Boolean); texts=(texts||[]).map(t=>String(t||'').trim()).filter(Boolean);
+  if(!files.length&&!texts.length) return;
+  if(shareQueue){ shareQueue.files.push(...files); shareQueue.texts.push(...texts); } else shareQueue={files,texts};
+  maybeShowShare(); }
+function maybeShowShare(){ if(!shareQueue||!state.user||!state.current||!$('#auth').hidden) return; shareSheet(); }
+async function pullNativeShare(){
+  if(!NATIVE||sharePulling) return; sharePulling=true;
+  try{ const r=await nativeCall('ShareIn','take',{}); const items=(r&&r.items)||[];
+    const files=items.filter(i=>i.data!=null).map(i=>b64ToFile(i.data,i.type,i.name)), texts=items.filter(i=>i.text).map(i=>i.text);
+    const big=items.filter(i=>i.tooLarge).map(i=>i.name);
+    if(big.length) toast('Too large to share: '+big.join(', '));
+    receiveShare(files,texts);
+  }catch(e){ /* older app without sharing */ }
+  sharePulling=false; }
+async function pullWebShare(){
+  if(!/[?&]share=1\b/.test(location.search)) return;
+  try{ history.replaceState(null,'','/app'); }catch(e){}
+  try{ const c=await caches.open('crud-share'), keys=await c.keys(), files=[], texts=[];
+    for(const k of keys){ const r=await c.match(k); if(!r) continue;
+      if(/\/__share\/text$/.test(k.url)) texts.push(await r.text());
+      else { const b=await r.blob(); files.push(new File([b],decodeURIComponent(r.headers.get('x-name')||'file'),{type:b.type||r.headers.get('content-type')||''})); }
+      await c.delete(k); }
+    receiveShare(files,texts);
+  }catch(e){} }
+const KIND_LABEL={image:'Photo',pdf:'PDF',text:'Text file',sheet:'Spreadsheet · becomes a section'};
+async function shareSheet(keepNote){
+  const q=shareQueue; if(!q) return;
+  const ok=q.files.filter(f=>fileKind(f)), bad=q.files.filter(f=>!fileKind(f));
+  const tiles=await Promise.all(ok.map(f=>fileKind(f)==='sheet'?Promise.resolve(''):makeThumb(f)));
+  if(shareQueue!==q) return;
+  if(!state.list.some(x=>x.id===shareTarget)) shareTarget=state.current;
+  const many=state.list.length>1;
+  let h='<h3>Share to CRUD.chat</h3>';
+  if(ok.length||bad.length) h+='<div class="sh-files">'+ok.map((f,i)=>tiles[i]
+      ?'<div class="sh-file"><img src="'+tiles[i]+'" alt=""><span>'+esc(fileKind(f)==='image'?'':(f.name||''))+'</span></div>'
+      :'<div class="sh-file wide"><span class="ic">'+svg('grid')+'</span><span>'+esc(f.name||'Spreadsheet')+'<small>'+KIND_LABEL.sheet+'</small></span></div>').join('')+
+    bad.map(f=>'<div class="sh-file wide bad"><span class="ic">'+svg('close')+'</span><span>'+esc(f.name||'File')+'<small>Can’t read this kind of file</small></span></div>').join('')+'</div>';
+  if(q.texts.length) h+='<div class="sh-text">'+esc(q.texts.join('\n\n').slice(0,600))+(q.texts.join('\n\n').length>600?'…':'')+'</div>';
+  if(!ok.length&&!q.texts.length){
+    h+='<div class="note" style="margin:6px 0 14px">CRUD.chat can read photos and screenshots, PDFs, Excel or CSV files, and text.</div><button class="btn grow" id="shCancel">OK</button>';
+    openSheet(h); $('#shCancel').onclick=()=>{ shareQueue=null; closeSheet(); }; return; }
+  h+='<div class="sh-lbl">'+(many?'Send to':'Sending to')+'</div><div class="sh-ws">'+
+    (many?state.list:state.list.filter(x=>x.id===state.current)).map(x=>{ const on=x.id===shareTarget;
+      return '<button class="row-item'+(on?' on':'')+'" data-shws="'+esc(x.id)+'"><span class="ws-tile'+(on?' on':'')+'">'+esc((x.name||'?').trim().charAt(0).toUpperCase())+'</span><span>'+esc(x.name)+'</span>'+(on?'<span class="rt">'+svg('check')+'</span>':'')+'</button>'; }).join('')+'</div>';
+  const notable=ok.some(f=>fileKind(f)!=='sheet')||q.texts.length;
+  if(notable) h+='<div class="vask" style="margin:10px 0 0"><textarea id="shNote" rows="2" maxlength="1500" placeholder="Add a note (optional), e.g. “paid in cash”"></textarea></div>';
+  h+='<div class="sh-btns"><button class="btn" id="shCancel">Cancel</button><button class="btn primary grow" id="shSend">Send'+(many?' to '+esc((state.list.find(x=>x.id===shareTarget)||{}).name||''):'')+'</button></div>';
+  openSheet(h);
+  if($('#shNote')&&keepNote) $('#shNote').value=keepNote;
+  $('#sheet').querySelectorAll('[data-shws]').forEach(b=>b.onclick=()=>{ shareTarget=b.dataset.shws; shareSheet(($('#shNote')||{}).value||''); });
+  $('#shCancel').onclick=()=>{ shareQueue=null; closeSheet(); };
+  $('#shSend').onclick=()=>sendShare(($('#shNote')||{}).value||'');
+}
+async function sendShare(note){
+  const q=shareQueue; if(!q) return; shareQueue=null; closeSheet();
+  if(processing){ toast('One moment — still working'); shareQueue=q; setTimeout(maybeShowShare,1500); return; }
+  const target=shareTarget||state.current;
+  if(target!==state.current){ await switchWorkspace(target); if(state.current!==target) return; }
+  const files=q.files.filter(f=>fileKind(f)), sheets=files.filter(f=>fileKind(f)==='sheet'), atts=files.filter(f=>fileKind(f)!=='sheet');
+  let shared=q.texts.join('\n\n').trim(), text=[note.trim(),shared].filter(Boolean).join('\n\n');
+  // Long shared text (a chat export, a long list) goes as a document rather than a message.
+  if(text.length>3500){ atts.unshift(new File([shared],'Shared text.txt',{type:'text/plain'})); text=note.trim(); }
+  for(const f of sheets) await importOne(f);
+  // One message carries up to 4 files (at most 3 documents); the note goes with the first.
+  const batches=[]; let cur=[];
+  for(const f of atts){ const docs=cur.filter(x=>fileKind(x)!=='image').length;
+    if(cur.length>=4||(fileKind(f)!=='image'&&docs>=3)){ batches.push(cur); cur=[]; } cur.push(f); }
+  if(cur.length) batches.push(cur);
+  if(!batches.length&&text) batches.push([]);
+  for(let i=0;i<batches.length;i++){ const b=batches[i];
+    const thumbs=(await Promise.all(b.map(makeThumb))).filter(Boolean);
+    await sendMessage(i===0?text:'', b, thumbs); }
 }
 
 /* ---------------- Viewport fit (keyboard) ---------------- */
@@ -3043,6 +3203,8 @@ function sheetClick(e){
   if(e.target.closest('#mWs')){ workspaceSheet(); return; }
   if(e.target.closest('#mSearch')){ closeSheet(); openSearch(); return; }
   if(e.target.closest('#mName')){ nameSheet(); return; }
+  if(e.target.closest('#mFeedback')){ feedbackSheet(); return; }
+  if(e.target.closest('#fbSend')){ sendFeedback(e.target.closest('#fbSend')); return; }
   if(e.target.closest('#mLogout')){ logout(); return; }
   if(e.target.closest('#mDelete')){ deleteSheet(); return; }
   if(e.target.closest('#delGo')){ deleteAccountNow(e.target.closest('#delGo')); return; }
@@ -3208,6 +3370,7 @@ function enterWorkspace(id, s){
   state.current=id; applyServerState(s); savePrefs();
   view={mode:ws().order.length?'list':'home',section:ws().order[0]||null,recordId:null};
   render(); applyTheme(); connectEvents(id);
+  if(shareQueue) setTimeout(maybeShowShare,250);
 }
 async function switchWorkspace(id){
   try{ const out=await api('GET','/workspaces/'+id+'/state'); enterWorkspace(id,out.state); }catch(e){ toast(e.message); }
@@ -3222,7 +3385,7 @@ async function loadApp(){
     const join=pendingJoin();
     if(join){ if(b.current){ state.current=b.current; } showAuth('loading'); if(await lookupJoin(join,true)) return; }
     if(!b.current){ showAuth('setup'); return; }
-    hideAuth(); enterWorkspace(b.current,b.state); setTimeout(storeSyncPending,1500);
+    hideAuth(); enterWorkspace(b.current,b.state); setTimeout(storeSyncPending,1500); pullNativeShare(); pullWebShare();
   }catch(e){ if(e.status!==401){ showAuth('start'); authError(e.message); } }
 }
 // Delete account: explain what happens, then ask the person to type DELETE.
@@ -3264,7 +3427,8 @@ function boot(){
   render();
   // Learn the login method (email or WhatsApp) before showing the login screen.
   fetch('/api/config').then(r=>r.json()).then(c=>{ state.config=c||{}; }).catch(()=>{}).finally(loadApp);
-  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') scheduleRefresh(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ scheduleRefresh(); if(state.current) pullNativeShare(); } });
+  window.addEventListener('crudshare',()=>{ if(state.current) pullNativeShare(); }); // fired by the app when something is shared to it
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();

@@ -83,6 +83,22 @@ One-time setup:
 7. **Start new build** → branch `crud-chat-backend` → workflow **iOS → TestFlight**. About 15 minutes later the build
    appears in App Store Connect → TestFlight (after Apple's processing, usually 15–30 minutes).
 
+### Share Extension (one-time Apple setup)
+
+"Share to CRUD.chat" on iPhone is a Share Extension (`ios/App/ShareExtension`, bundle ID `chat.crud.app.share`).
+It saves what was shared into an App Group that the app reads, so both App IDs need that group:
+1. Apple Developer → **Identifiers → +** → **App Groups** → description "CRUD.chat", identifier `group.chat.crud.app`.
+2. **Identifiers → chat.crud.app** → tick **App Groups** → **Configure** → tick `group.chat.crud.app` → Continue → **Save**.
+3. **Identifiers → +** → App IDs → App → description "CRUD.chat Share", Bundle ID (explicit) `chat.crud.app.share` →
+   tick **App Groups** → Configure → tick `group.chat.crud.app` → Continue → Register.
+4. **Profiles**: open "CRUD App Store" → **Edit** → **Save** (it was invalidated by step 2) and download nothing.
+   Then **+** → *App Store Connect* → App ID `chat.crud.app.share` → the same certificate → name "CRUD Share App Store" → Generate.
+5. Codemagic → **Team settings → Code signing identities → iOS provisioning profiles → Fetch profiles** → add both
+   profiles (remove the old, invalid one).
+6. Start a new build.
+
+On Android nothing extra is needed: the share-intent filters are in `AndroidManifest.xml` (see `ShareInPlugin.java`).
+
 For each App Store release, bump `APP_VERSION` in `codemagic.yaml`. Build numbers count up by themselves.
 Invite links that open the app (Associated Domains) are a later step: enable the capability on the App ID, then
 ask for the entitlement to be added to the project.

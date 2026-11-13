@@ -196,3 +196,16 @@ export const pageViews = pgTable("page_views", {
   device: text("device"),                         // mobile | desktop
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [index("page_views_time_idx").on(t.createdAt)]);
+
+// Feedback people send from the app's menu. Shown to admins on /admin.
+export const feedback = pgTable("feedback", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
+  text: text("text").notNull(),
+  platform: text("platform"),                     // web | ios | android
+  page: text("page"),                             // what they were looking at, e.g. "Orders · Table"
+  userAgent: text("user_agent"),
+  status: text("status").notNull().default("new"), // new | done
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("feedback_time_idx").on(t.createdAt)]);

@@ -15,6 +15,7 @@ let useFallbacks = env.claudeFallbacks;
 export class AiUnavailable extends Error {}
 
 type ImageInput = { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" };
+type DocInput = { name: string; mediaType: "application/pdf" | "text/plain"; data: string };
 
 // What one Claude call used — the server prices it and charges the workspace (src/domain/billing.ts).
 export type AiUsage = { label: string; model: string; input: number; output: number; cacheRead: number; cacheWrite: number };
@@ -133,11 +134,12 @@ export type Snapshot = {
 };
 
 export async function understand(input: {
-  text: string; snapshot: Snapshot; contextRecordId?: string | null; images?: ImageInput[];
+  text: string; snapshot: Snapshot; contextRecordId?: string | null; images?: ImageInput[]; docs?: DocInput[];
   viewing?: { section: string; view: unknown } | null;
   onUsage?: OnUsage;
 }): Promise<UnderstandingT | null> {
   const imgs = input.images ?? [];
+  const docs = input.docs ?? [];
   const notes: string[] = [];
   if (input.contextRecordId) {
     notes.push(`The team member is CURRENTLY viewing record id "${input.contextRecordId}". If this message changes a record, it most likely means that one.`);
@@ -153,16 +155,23 @@ export async function understand(input: {
   if (imgs.length) {
     notes.push(`They attached ${imgs.length} image(s) — usually a screenshot of an order, a WhatsApp chat, an invoice, a receipt or a list. The image is the main content: read it carefully and extract the record(s). One screenshot can hold several records — return one operation per record. Default to "record" unless the image is clearly just a question.`);
   }
+  if (docs.length) {
+    notes.push(`They shared ${docs.length} file(s): ${docs.map((d) => `"${d.name}"`).join(", ")} — e.g. an invoice, bill, purchase order, price list, bank statement or an exported WhatsApp chat. The file is the main content: read it and extract the record(s) it holds — one operation per record (a statement or chat can hold many; stick to clear business facts such as orders, payments, deliveries and tasks). Default to "record" unless the message text clearly asks a question about the file.`);
+  }
   const text =
     `Existing sections and recent records (JSON):\n${JSON.stringify(input.snapshot)}\n\n` +
-    `New message from a team member:\n"""${input.text || (imgs.length ? "(no text — see the attached image)" : "")}"""` +
+    `New message from a team member:\n"""${input.text || (imgs.length || docs.length ? "(no text — see the attached " + (docs.length ? "file" : "image") + ")" : "")}"""` +
     (notes.length ? `\n\n${notes.join("\n")}` : "");
   const content: Anthropic.Beta.BetaContentBlockParam[] = [
+    ...docs.map((d) => d.mediaType === "application/pdf"
+      ? ({ type: "document" as const, title: d.name.slice(0, 200), source: { type: "base64" as const, media_type: "application/pdf" as const, data: d.data } })
+      : ({ type: "document" as const, title: d.name.slice(0, 200), source: { type: "text" as const, media_type: "text/plain" as const, data: d.data } })),
     ...imgs.map((im) => ({ type: "image" as const, source: { type: "base64" as const, media_type: im.mediaType, data: im.data } })),
     { type: "text", text },
   ];
-  return structured(Understanding, UNDERSTAND_SYSTEM, content, imgs.length ? env.effortHeavy : env.effortChat,
-    imgs.length ? "understand+image" : "understand", { normalize: normalizeUnderstanding, onUsage: input.onUsage });
+  const heavy = imgs.length > 0 || docs.length > 0;
+  return structured(Understanding, UNDERSTAND_SYSTEM, content, heavy ? env.effortHeavy : env.effortChat,
+    docs.length ? "understand+file" : imgs.length ? "understand+image" : "understand", { normalize: normalizeUnderstanding, onUsage: input.onUsage });
 }
 
 export async function planImport(input: {

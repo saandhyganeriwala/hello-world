@@ -12,10 +12,13 @@ import { sanitizeView } from "./views.js";
 import { and } from "drizzle-orm";
 
 export type ImageInput = { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" };
+/** A shared or attached document: a PDF (base64) or plain text (e.g. a WhatsApp chat export). */
+export type DocInput = { name: string; mediaType: "application/pdf" | "text/plain"; data: string };
 
 export type SendInput = {
   text: string;
   images: ImageInput[];
+  docs?: DocInput[];
   thumbs: string[];
   contextRecordId: string | null;
   clientId: string;
@@ -44,6 +47,13 @@ function limitMessage(b: Billing) {
     : `You've used your ${env.freeActions} free AI actions, so questions, screenshots and view changes are paused. Plain records are still saved.`;
 }
 
+function attachmentLabel(images: number, docs: DocInput[]) {
+  const parts: string[] = [];
+  if (images) parts.push(images > 1 ? `${images} screenshots` : "Screenshot");
+  for (const d of docs) parts.push(d.name || (d.mediaType === "application/pdf" ? "PDF" : "Text file"));
+  return parts.join(" · ");
+}
+
 async function botReply(workspaceId: string, text: string) {
   await getDb().insert(messages).values({ workspaceId, role: "assistant", authorName: "CRUD", text });
 }
@@ -55,11 +65,12 @@ async function botReply(workspaceId: string, text: string) {
 export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ result: SendResult; effects: Effect[] }> {
   const db = getDb();
   const ws = ctx.workspaceId;
-  const hasImg = input.images.length > 0;
+  const docs = input.docs ?? [];
+  const hasImg = input.images.length > 0 || docs.length > 0; // anything Claude has to read
 
   const [msg] = await db.insert(messages).values({
     workspaceId: ws, userId: ctx.userId, authorName: ctx.authorName,
-    text: input.text || (hasImg ? (input.images.length > 1 ? `${input.images.length} screenshots` : "Screenshot") : ""),
+    text: input.text || attachmentLabel(input.images.length, docs),
     images: input.thumbs.length ? input.thumbs : null, pending: true,
   }).returning();
   publish(ws, { type: "change", by: input.clientId });
@@ -84,7 +95,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
     try {
       ai = await understand({
         onUsage: (u) => recordUsage(ws, ctx.userId, u),
-        text: input.text, snapshot: await buildSnapshot(ws), contextRecordId: input.contextRecordId, images: input.images,
+        text: input.text, snapshot: await buildSnapshot(ws), contextRecordId: input.contextRecordId, images: input.images, docs,
         viewing: input.viewing ?? null,
       });
       if (!ai) aiFailed = true; // refusal or unparseable
@@ -124,8 +135,8 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
       } else if (hasImg) {
         result.kind = "error";
         await botReply(ws, aiEnabled()
-          ? "Sorry — I couldn't read that screenshot just now. Please try again in a moment."
-          : "I can't read screenshots yet — my AI isn't switched on for this workspace. Type it out and I'll still save it.");
+          ? `Sorry — I couldn't read ${docs.length ? "that file" : "that screenshot"} just now. Please try again in a moment.`
+          : `I can't read ${docs.length ? "files" : "screenshots"} yet — my AI isn't switched on for this workspace. Type it out and I'll still save it.`);
       } else if (addressed(input.text) || looksLikeQuestion(input.text) || looksLikeCommand(input.text)) {
         result.kind = "error";
         await botReply(ws, aiEnabled()

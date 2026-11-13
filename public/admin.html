@@ -69,6 +69,18 @@ tr:last-child td{border-bottom:0}
 .hbar .v{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:600;min-width:64px;text-align:right}
 .hbar .v small{color:var(--muted);font-weight:500;margin-left:6px}
 .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--brand-soft);color:var(--fg)}
+.fb{display:grid;gap:10px}
+.fb-item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;gap:8px}
+.fb-item.done{opacity:.62}
+.fb-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.5;color:var(--fg)}
+.fb-meta{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12.5px;color:var(--muted)}
+.fb-meta b{color:var(--fg-2);font-weight:650}
+.fb-meta a{color:inherit}
+.fb-act{margin-left:auto;border:1px solid var(--line);background:transparent;color:var(--fg-2);font:600 12.5px var(--font);padding:5px 11px;border-radius:999px;cursor:pointer}
+.fb-act:hover{border-color:var(--fg-2)}
+.fb-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fb-head h2{margin-right:auto}
+.seg.sm{margin-left:0}
 .state{padding:80px 20px;text-align:center;color:var(--fg-2)}
 .state a{color:inherit;font-weight:700}
 .note{font-size:12.5px;color:var(--muted);margin-top:10px}
@@ -136,6 +148,41 @@ function statTable(cols){ const keys=[['avg','Average'],['median','Median'],['p7
 function table(head,rows){ if(!rows.length) return '<p class="note">Nothing yet.</p>';
   return '<div class="tscroll"><table><thead><tr>'+head.map(h=>'<th'+(h.n?' class="n"':'')+'>'+esc(h.t)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map((c,i)=>'<td'+(head[i].n?' class="n"':'')+'>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'; }
 
+
+/* ---- feedback (from Menu → Send feedback in the app) ---- */
+let fbFilter='new', fb=null;
+try{ fbFilter=localStorage.getItem('crud.admin.fb')||'new'; }catch(e){}
+const PLAT={ios:'iPhone app',android:'Android app',web:'Web'};
+const dTime=s=>new Date(s).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+function renderFeedback(){
+  const el=$('#fbBox'); if(!el) return;
+  if(!fb){ el.innerHTML='<p class="note">Loading feedback…</p>'; return; }
+  const items=fb.items.filter(f=>fbFilter==='all'||f.status==='new');
+  let h='<div class="fb-head"><h2 id="feedback">Feedback <span class="pill">'+fmt(fb.counts.open)+' open</span></h2>'+
+    '<div class="seg sm" role="group" aria-label="Feedback filter"><button data-fb="new" aria-pressed="'+(fbFilter==='new')+'">Open</button><button data-fb="all" aria-pressed="'+(fbFilter==='all')+'">All '+fmt(fb.counts.total)+'</button></div></div>';
+  if(!items.length) h+='<div class="card"><p class="note" style="margin:0">'+(fbFilter==='new'&&fb.counts.total?'All caught up. Nothing open.':'No feedback yet. People send it from the app: Menu → Send feedback.')+'</p></div>';
+  else h+='<div class="fb">'+items.map(f=>{
+    const u=f.user, contact=u?(u.contact.includes('@')?'<a href="mailto:'+esc(u.contact)+'">'+esc(u.contact)+'</a>':'<a href="tel:'+esc(u.contact)+'">'+esc(u.contact)+'</a>'):'';
+    return '<div class="fb-item'+(f.status==='done'?' done':'')+'"><div class="fb-text">'+esc(f.text)+'</div><div class="fb-meta">'+
+      (u?'<span><b>'+esc(u.name||'No name')+'</b> · '+contact+'</span>':'<span><b>Deleted account</b></span>')+
+      (f.workspace?'<span>'+esc(f.workspace.name)+(f.workspace.pro?' <span class="pill">Pro</span>':'')+'</span>':'')+
+      '<span>'+esc(PLAT[f.platform]||f.platform)+(f.page?' · '+esc(f.page):'')+'</span>'+
+      '<span>'+dTime(f.createdAt)+'</span>'+
+      '<button class="fb-act" data-fbid="'+esc(f.id)+'" data-to="'+(f.status==='done'?'new':'done')+'">'+(f.status==='done'?'Reopen':'Mark done')+'</button></div></div>'; }).join('')+'</div>';
+  el.innerHTML=h;
+}
+async function loadFeedback(){
+  try{ const r=await fetch('/api/admin/feedback',{credentials:'same-origin'}); if(!r.ok) return; fb=await r.json(); renderFeedback();
+    if(location.hash==='#feedback'){ const t=document.getElementById('feedback'); if(t) t.scrollIntoView({block:'start'}); } }catch(e){}
+}
+main.addEventListener('click',async e=>{
+  const f=e.target.closest('[data-fb]'); if(f){ fbFilter=f.dataset.fb; try{ localStorage.setItem('crud.admin.fb',fbFilter); }catch(err){} renderFeedback(); return; }
+  const b=e.target.closest('[data-fbid]'); if(!b) return;
+  b.disabled=true;
+  try{ const r=await fetch('/api/admin/feedback/'+b.dataset.fbid,{method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({status:b.dataset.to})});
+    if(r.ok){ const it=fb.items.find(x=>x.id===b.dataset.fbid); if(it){ it.status=b.dataset.to; fb.counts.open+=b.dataset.to==='done'?-1:1; } renderFeedback(); } else b.disabled=false; }catch(err){ b.disabled=false; }
+});
+
 function render(){
   const d=data, rangeTxt=days?'last '+days+' days':'all time', t=d.traffic, p=d.people, a=d.actions, w=d.workspaces, m=d.money;
   const sum=k=>d.series.reduce((s,x)=>s+x[k],0);
@@ -150,6 +197,7 @@ function render(){
     kpi('Pro workspaces',fmt(m.proWorkspaces),fmt(m.newSubscriptions)+' new · '+fmt(m.cancellations)+' cancelled')+
     kpi('Monthly recurring',inr(m.mrrInr),'from active subscriptions')+
     kpi('Revenue',inr(m.revenueInr),fmt(m.payments)+' payments · '+inr(m.revenueAllInr)+' all time')+'</div>';
+  h+='<div id="fbBox"></div>';
 
   const pts=k=>d.series.map(x=>({l:dShort(x.day),tip:dShort(x.day),v:x[k]}));
   h+='<h2>Every day</h2><div class="grid cols-3">'+
@@ -182,7 +230,7 @@ function render(){
   h+='<h2>Latest signups</h2><div class="card">'+table([{t:'Person'},{t:'Name'},{t:'Workspaces',n:1},{t:'Free actions used',n:1},{t:'Signed up',n:1}],
     d.recentSignups.map(r=>[esc(r.who),esc(r.name),fmt(r.workspaces),fmt(r.freeUsed),dWhen(r.createdAt)]))+'</div>';
   h+='<p class="note">Visitors are counted without cookies: a one-way hash of each visitor’s IP address and browser, with bots left out. Visits before this dashboard went live aren’t counted.</p>';
-  main.innerHTML=h; drawCharts();
+  main.innerHTML=h; drawCharts(); renderFeedback();
   $('#updated').textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
 }
 
@@ -193,7 +241,7 @@ async function load(){
     if(r.status===401){ main.innerHTML='<div class="state">Please <a href="/app">log in</a> first, then come back to this page.</div>'; return; }
     if(r.status===403){ main.innerHTML='<div class="state">This page is for admins. Add your login email to <code>ADMIN_EMAILS</code> on the server.</div>'; return; }
     if(!r.ok) throw new Error('HTTP '+r.status);
-    data=await r.json(); render();
+    data=await r.json(); render(); if(!fb) loadFeedback();
   }catch(e){ main.innerHTML='<div class="state">Couldn’t load the numbers. <a href="#" id="retry">Try again</a></div>'; $('#retry').onclick=ev=>{ ev.preventDefault(); load(); }; }
 }
 document.querySelector('.seg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; days=Number(b.dataset.days); try{ localStorage.setItem('crud.admin.days',String(days)); }catch(err){} load(); });
