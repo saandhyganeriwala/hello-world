@@ -443,6 +443,9 @@ body.editing #chat{display:none}
 .micbtn svg{width:19px;height:19px}
 #micBtn{touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .micbtn.rec{background:var(--danger);color:#fff;animation:recp 1.4s infinite}
+.micbtn.busy{cursor:default;pointer-events:none;background:var(--surface-2)}
+.mic-spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--fg);animation:micspin .8s linear infinite;display:block}
+@keyframes micspin{to{transform:rotate(360deg)}}
 @keyframes recp{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--danger) 55%,transparent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .sendbtn{flex:none;width:38px;height:38px;border-radius:50%;border:0;background:var(--accent);color:#fff;
   display:grid;place-items:center;transition:transform .12s,opacity .15s}
@@ -2542,9 +2545,13 @@ const VOICE_MSG='Microphone access is blocked — allow it for this site in your
 const VOICE_UNSUPPORTED='Voice typing isn’t supported in this browser — try Chrome or Safari.';
 const IS_ANDROID=/Android/i.test(navigator.userAgent);
 var voice={on:false,session:0,rec:null,base:'',done:'',stopping:false,blocked:false,restarts:0,downAt:0,mode:null};
-function setListening(on,hint){
-  $('#listening').hidden=!on; const mb=$('#micBtn'); mb.classList.toggle('rec',on);
-  mb.innerHTML=svg(on?'stop':'mic'); mb.setAttribute('aria-label',on?'Finish voice note':'Voice note');
+// busy = the recording has stopped and the words are being written out: the button shows a spinner and
+// can't be tapped until the text arrives.
+function setListening(on,hint,busy){
+  $('#listening').hidden=!on; const mb=$('#micBtn'); busy=!!(on&&busy);
+  mb.classList.toggle('rec',on&&!busy); mb.classList.toggle('busy',busy); mb.disabled=busy; mb.setAttribute('aria-busy',busy?'true':'false');
+  mb.innerHTML=busy?'<span class="mic-spin" aria-hidden="true"></span>':svg(on?'stop':'mic');
+  mb.setAttribute('aria-label',busy?'Writing out your voice note':on?'Finish voice note':'Voice note');
   voice.hint=hint||''; $('#listenHint').textContent=hint||'Listening…'; }
 function voiceText(seg){ return (voice.base+voice.done+' '+seg).replace(/\s+/g,' ').trim(); }
 /* ---- Better voice: record here, a proper speech-to-text model writes it out (server). ----
@@ -2628,8 +2635,8 @@ function listen(sess){
 function stopVoice(){
   if(voice.server){ if(!voice.on||voice.stopping) return;
     if(!voice.mr){ cancelVoice(); return; } // still waiting for microphone permission
-    voice.stopping=true; setListening(true,'Writing it out…'); if(voice.mr.state==='recording') voice.mr.stop(); return; }
-  if(!voice.on) return; voice.stopping=true; setListening(true,'Finishing…');
+    voice.stopping=true; setListening(true,'Writing it out…',true); if(voice.mr.state==='recording') voice.mr.stop(); return; }
+  if(!voice.on) return; voice.stopping=true; setListening(true,'Finishing…',true);
   const s=voice.session; try{ voice.rec&&voice.rec.stop(); }catch(e){ finishVoice(s); return; }
   setTimeout(()=>finishVoice(s),2500); } // in case the browser never reports the end
 function finishVoice(sess){
