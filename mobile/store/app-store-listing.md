@@ -53,9 +53,11 @@ spreadsheet,excel,crm,orders,invoice,inventory,leads,ledger,khata,business,team,
 **Version:** 1.0.0
 **Copyright:** 2026 Crud
 
-**Screenshots:**
-- iPhone 6.9" Display: the 5 images in `mobile/store/ios-6.9/` (1290×2796), in numbered order
-- iPad 13" Display: the 5 images in `mobile/store/ipad-13/` (2064×2752), in numbered order
+**Screenshots (use the v2 set, in numbered order):**
+- iPhone (Dynamic Island, medium display): the 6 images in `mobile/store/v2/iphone/` (1206×2622)
+- iPhone Duo: the 6 images in `mobile/store/v2/duo/` (2007×2853)
+- iPad 13" Display: the 6 images in `mobile/store/v2/ipad/` (2064×2752)
+- To re-render after changes: `node mobile/store/v2/compose.cjs`. To brief ChatGPT or a designer instead, see `mobile/store/v2/chatgpt-brief.md`.
 
 ## App Review Information (on the version page, at the bottom)
 
