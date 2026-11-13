@@ -85,10 +85,9 @@ Data collection: **Yes, we collect data.** For each type below choose: used for 
 |---|---|---|
 | Contact Info | Email Address | App Functionality |
 | Contact Info | Name | App Functionality |
-| Contact Info | Phone Number (only if people record it in their workspace) | App Functionality |
 | User Content | Photos or Videos (screenshots people send) | App Functionality |
 | User Content | Audio Data (voice notes) | App Functionality |
-| User Content | Other User Content (messages and records) | App Functionality |
+| User Content | Other User Content (messages and records, including any phone numbers or addresses people record) | App Functionality |
 | Identifiers | User ID | App Functionality |
 | Purchases | Purchase History | App Functionality |
 | Usage Data | Product Interaction | App Functionality, Analytics |
