@@ -606,6 +606,11 @@ body.busy #topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px
 .ws-tile{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-family:var(--display);
   font-weight:800;font-size:15px;background:var(--surface-3);color:var(--fg-2)}
 .ws-tile.on{background:var(--accent);color:#fff;box-shadow:0 2px 0 var(--hard)}
+.ws-lbl{margin:14px 4px 4px}.ws-lbl:first-of-type{margin-top:2px}
+.row-item.cur{background:var(--surface-2)}
+.ws-tile.add{background:transparent;border:1.5px dashed var(--border-strong);color:var(--muted)}
+.ws-tile.add svg{width:16px;height:16px}
+.new-ws{padding:4px 2px 6px}.new-ws .note{margin:6px 4px 0}
 
 /* ---- Tabs: index tabs, each section has its own colour ---- */
 .tab{border:1.5px solid var(--border);background:var(--surface);color:var(--fg-2);font-weight:650;
@@ -2478,16 +2483,25 @@ function startFieldEdit(el){
 /* ---------------- Sheets ---------------- */
 function openSheet(html){ const s=$('#sheet'); s.innerHTML='<div class="grab"></div>'+html; $('#sheetScrim').hidden=false; }
 function closeSheet(){ $('#sheetScrim').hidden=true; if(renderDeferred&&!editingNow()){ renderDeferred=false; render(); } }
+// Two groups: the workspaces you're in (switch, or add one), then settings for the one you're in.
 function workspaceSheet(){
-  const owner=ws().role==='owner';
+  const w=ws(), owner=w.role==='owner';
   openSheet('<h3>Workspaces</h3>'+
+    '<div class="sh-lbl ws-lbl">Your workspaces</div>'+
     state.list.map(x=>{ const on=x.id===state.current;
-      return '<button class="row-item" data-ws="'+esc(x.id)+'"><span class="ws-tile'+(on?' on':'')+'">'+esc((x.name||'?').trim().charAt(0).toUpperCase())+'</span><span>'+esc(x.name)+'<span class="sub">'+(x.role==='owner'?'Owner':'Member')+'</span></span>'+(on?'<span class="rt">'+svg('check')+'</span>':'')+'</button>';
+      return '<button class="row-item'+(on?' cur':'')+'" data-ws="'+esc(x.id)+'"><span class="ws-tile'+(on?' on':'')+'">'+esc((x.name||'?').trim().charAt(0).toUpperCase())+'</span>'+
+        '<span>'+esc(x.name)+'<span class="sub">'+(x.role==='owner'?'Owner':'Member')+(on?' · You’re here':'')+'</span></span>'+(on?'<span class="rt">'+svg('check')+'</span>':'')+'</button>';
     }).join('')+
-    '<div class="sdiv"></div>'+
-    '<div class="inline"><input id="newWs" placeholder="New workspace name" autocomplete="off"><button id="newWsBtn" disabled>Create</button></div>'+
-    '<button class="row-item" id="renameWs"><span>'+svg('edit')+'</span><span>Rename \u201c'+esc(ws().name)+'\u201d</span></button>'+
-    (owner?'<button class="row-item danger" id="clearWs"><span>'+svg('trash')+'</span><span>Clear this workspace<span class="sub">Removes all records & messages for everyone</span></span></button>':''));
+    '<div id="newWsSlot"><button class="row-item" id="newWsRow"><span class="ws-tile add">'+svg('plus')+'</span><span>New workspace<span class="sub">For another business or team</span></span></button></div>'+
+    '<div class="sh-lbl ws-lbl">Settings for \u201c'+esc(w.name)+'\u201d</div>'+
+    '<button class="row-item" id="renameWs"><span>'+svg('edit')+'</span><span>Rename workspace</span></button>'+
+    (owner?'<button class="row-item danger" id="clearWs"><span>'+svg('trash')+'</span><span>Clear all records<span class="sub">Removes every record & message, for everyone</span></span></button>':''));
+}
+function showNewWorkspace(){
+  const slot=$('#newWsSlot'); if(!slot) return;
+  slot.innerHTML='<div class="new-ws"><div class="inline"><input id="newWs" placeholder="Name, e.g. Thali House" autocomplete="off" maxlength="60"><button id="newWsBtn" disabled>Create</button></div>'+
+    '<div class="note">You’ll start with an empty workspace. Invite your team from it afterwards.</div></div>';
+  setTimeout(()=>{ try{ $('#newWs').focus(); }catch(e){} },30);
 }
 function teamSheet(){
   const w=ws(), owner=w.role==='owner';
@@ -3193,6 +3207,7 @@ function sheetClick(e){
   const wsItem=e.target.closest('[data-ws]'); if(wsItem){ closeSheet(); switchWorkspace(wsItem.dataset.ws); return; }
   const rm=e.target.closest('[data-rmmem]'); if(rm){ removeMember(rm.dataset.rmmem); return; }
   if(e.target.closest('#newWsBtn')){ createWorkspace(); return; }
+  if(e.target.closest('#newWsRow')){ showNewWorkspace(); return; }
   if(e.target.closest('#newMemBtn')){ addMember(); return; }
   if(e.target.closest('#invCopy')){ copyInvite(); return; }
   if(e.target.closest('#invShare')){ shareInvite(); return; }
