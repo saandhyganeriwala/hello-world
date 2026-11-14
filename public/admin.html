@@ -69,6 +69,14 @@ tr:last-child td{border-bottom:0}
 .hbar .v{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:600;min-width:64px;text-align:right}
 .hbar .v small{color:var(--muted);font-weight:500;margin-left:6px}
 .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--brand-soft);color:var(--fg)}
+.lk{display:flex;gap:8px;flex-wrap:wrap}
+.lk input{flex:1;min-width:220px;font:500 15px var(--font);padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+.lk button{font:650 14px var(--font);padding:9px 16px;border-radius:10px;border:0;background:var(--fg);color:var(--bg);cursor:pointer}
+.lk-ws{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.lk-ws h4{margin:0 0 4px;font-size:15px}
+.meter{height:10px;border-radius:99px;background:var(--grid);overflow:hidden;margin:8px 0 4px}
+.meter i{display:block;height:100%;background:var(--series);border-radius:99px}
+.meter.over i{background:var(--danger)}
 .fb{display:grid;gap:10px}
 .fb-item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;gap:8px}
 .fb-item.done{opacity:.62}
@@ -150,7 +158,7 @@ function table(head,rows){ if(!rows.length) return '<p class="note">Nothing yet.
 
 
 /* ---- feedback (from Menu → Send feedback in the app) ---- */
-let fbFilter='new', fb=null;
+let fbFilter='new', fb=null, lkLast='';
 try{ fbFilter=localStorage.getItem('crud.admin.fb')||'new'; }catch(e){}
 const PLAT={ios:'iPhone app',android:'Android app',web:'Web'};
 const dTime=s=>new Date(s).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
@@ -183,6 +191,34 @@ main.addEventListener('click',async e=>{
     if(r.ok){ const it=fb.items.find(x=>x.id===b.dataset.fbid); if(it){ it.status=b.dataset.to; fb.counts.open+=b.dataset.to==='done'?-1:1; } renderFeedback(); } else b.disabled=false; }catch(err){ b.disabled=false; }
 });
 
+
+/* ---- usage lookup: what used a workspace's AI allowance ---- */
+const lkLabel={'understand':'Message','understand+image':'Screenshot','understand+file':'PDF / file','import-plan':'Spreadsheet import','custom-view':'Custom view built','transcribe':'Voice transcription','answer':'Answer'};
+function renderLookup(r){
+  const el=$('#lkOut'); if(!el) return;
+  if(!r.person){ el.innerHTML='<p class="note">No one found with that email or phone.</p>'; return; }
+  const p=r.person;
+  let h='<p class="note" style="margin-top:12px"><b>'+esc(p.name||'No name')+'</b> · '+esc(p.contact)+' · joined '+dWhen(p.since)+' · free actions used '+fmt(p.freeActionsUsed)+'</p>';
+  for(const w of r.workspaces){ const a=w.allowance, pctUsed=a.actionsLimit?Math.min(100,a.actionsUsed/a.actionsLimit*100):0;
+    h+='<div class="lk-ws"><h4>'+esc(w.name)+' '+(w.plan==='pro'?'<span class="pill">Pro</span>':'<span class="pill" style="background:var(--grid)">Free</span>')+'</h4>'+
+      '<p class="note" style="margin:0">'+esc(w.role)+' · '+fmt(w.members)+' people · '+fmt(w.records)+' records'+(a.provider?' · billed via '+esc(a.provider)+' ('+esc(a.status||'')+')':'')+'</p>'+
+      '<div class="meter'+(a.ok?'':' over')+'"><i style="width:'+pctUsed+'%"></i></div>'+
+      '<p class="note" style="margin:0">'+fmt(a.actionsUsed)+' of '+fmt(a.actionsLimit)+' actions used'+(w.plan==='pro'?' · '+inr(a.usedInr)+' of AI cost':'')+
+        (a.periodSince?' · period '+dWhen(a.periodSince)+' → '+(a.periodEnds?dWhen(a.periodEnds):'—'):'')+(a.ok?'':' · <b style="color:var(--danger)">used up</b>')+'</p>';
+    h+='<h3 style="margin:14px 0 6px;font-size:13.5px">'+(w.plan==='pro'?'This period, by kind of request':'All time, by kind of request')+'</h3>'+
+      table([{t:'Kind'},{t:'Calls',n:1},{t:'Cost',n:1},{t:'Avg per call',n:1},{t:'≈ actions each',n:1},{t:'Avg tokens in / out / cache write',n:1}],
+        w.byLabel.map(b=>[esc(lkLabel[b.label]||b.label),fmt(b.calls),inr(b.inr),inr(b.avgInr),(b.avgInr/0.45).toFixed(1),fmt(b.avgIn)+' / '+fmt(b.avgOut)+' / '+fmt(b.avgCacheWrite)]));
+    h+='<details style="margin-top:10px"><summary class="note" style="cursor:pointer">Latest '+w.recent.length+' AI calls</summary>'+
+      table([{t:'When'},{t:'Kind'},{t:'By'},{t:'In',n:1},{t:'Out',n:1},{t:'Cache read',n:1},{t:'Cache write',n:1},{t:'Cost',n:1}],
+        w.recent.map(c=>[new Date(c.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),esc(lkLabel[c.label]||c.label),esc(c.by),fmt(c.input),fmt(c.output),fmt(c.cacheRead),fmt(c.cacheWrite),inr(c.inr)]))+'</details></div>'; }
+  el.innerHTML=h; }
+async function runLookup(){
+  const v=($('#lkIn')||{}).value||''; if(!v.trim()) return; lkLast=v.trim(); const el=$('#lkOut'); el.innerHTML='<p class="note">Looking up…</p>';
+  try{ const r=await fetch('/api/admin/usage?who='+encodeURIComponent(v.trim()),{credentials:'same-origin'}); if(!r.ok) throw new Error(); renderLookup(await r.json()); }
+  catch(e){ el.innerHTML='<p class="note">Couldn’t look that up.</p>'; } }
+main.addEventListener('click',e=>{ if(e.target.closest('#lkGo')) runLookup(); });
+main.addEventListener('keydown',e=>{ if(e.target.id==='lkIn'&&e.key==='Enter') runLookup(); });
+
 function render(){
   const d=data, rangeTxt=days?'last '+days+' days':'all time', t=d.traffic, p=d.people, a=d.actions, w=d.workspaces, m=d.money;
   const sum=k=>d.series.reduce((s,x)=>s+x[k],0);
@@ -198,6 +234,8 @@ function render(){
     kpi('Monthly recurring',inr(m.mrrInr),'from active subscriptions')+
     kpi('Revenue',inr(m.revenueInr),fmt(m.payments)+' payments · '+inr(m.revenueAllInr)+' all time')+'</div>';
   h+='<div id="fbBox"></div>';
+  h+='<h2 id="usage">Look up usage</h2><div class="card"><p class="hint">See what used a person’s AI allowance: their workspaces, cost by kind of request this period, and the latest AI calls.</p>'+
+    '<div class="lk"><input id="lkIn" placeholder="Email or phone" autocomplete="off" value="'+esc(lkLast)+'"><button id="lkGo">Look up</button></div><div id="lkOut"></div></div>';
 
   const pts=k=>d.series.map(x=>({l:dShort(x.day),tip:dShort(x.day),v:x[k]}));
   h+='<h2>Every day</h2><div class="grid cols-3">'+
@@ -230,7 +268,7 @@ function render(){
   h+='<h2>Latest signups</h2><div class="card">'+table([{t:'Person'},{t:'Name'},{t:'Workspaces',n:1},{t:'Free actions used',n:1},{t:'Signed up',n:1}],
     d.recentSignups.map(r=>[esc(r.who),esc(r.name),fmt(r.workspaces),fmt(r.freeUsed),dWhen(r.createdAt)]))+'</div>';
   h+='<p class="note">Visitors are counted without cookies: a one-way hash of each visitor’s IP address and browser, with bots left out. Visits before this dashboard went live aren’t counted.</p>';
-  main.innerHTML=h; drawCharts(); renderFeedback();
+  main.innerHTML=h; drawCharts(); renderFeedback(); if(lkLast) runLookup();
   $('#updated').textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
 }
 

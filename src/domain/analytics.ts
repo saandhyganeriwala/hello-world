@@ -193,3 +193,41 @@ async function firstActivity() {
   const t = r?.t ? new Date(r.t) : new Date();
   return t.getTime() > Date.now() - 864e5 ? new Date(Date.now() - 6 * 864e5) : t;
 }
+
+// ---- usage lookup (admin): what used a workspace's AI allowance ----
+// Finds the workspaces a person (by email or phone) belongs to, and for each one shows the plan, the current
+// allowance and where it went: AI cost by kind of request since the period began, and the latest calls.
+export async function usageLookup(who: string) {
+  const { billingStatus } = await import("./billing.js");
+  const key = who.trim().toLowerCase();
+  if (!key) return { person: null, workspaces: [] };
+  const [person] = await q(sql`select id, name, email, phone, created_at, free_actions_used from users
+    where lower(email) = ${key} or phone = ${key} or lower(email) like ${"%" + key + "%"} order by (lower(email) = ${key}) desc limit 1`);
+  if (!person) return { person: null, workspaces: [] };
+  const wss = await q(sql`select w.id, w.name, w.plan, w.plan_until, w.period_start, w.renews_at, w.bonus_inr, m.role,
+      (select count(*) from members x where x.workspace_id = w.id)::int as members,
+      (select count(*) from records r where r.workspace_id = w.id)::int as records
+    from members m join workspaces w on w.id = m.workspace_id where m.user_id = ${person.id} order by w.created_at`);
+  const out = [];
+  for (const w of wss) {
+    const bill = await billingStatus(w.id);
+    const since = new Date(bill.plan === "pro" && bill.periodSince ? bill.periodSince : Date.UTC(2000, 0, 1)).toISOString();
+    const byLabel = await q(sql`select label, count(*)::int as calls, sum(cost_inr)::float8 as inr, avg(cost_inr)::float8 as avg_inr,
+        avg(input_tokens)::float8 as avg_in, avg(output_tokens)::float8 as avg_out, avg(cache_write_tokens)::float8 as avg_cw
+      from ai_usage where workspace_id = ${w.id} and created_at >= ${since}::timestamptz group by label order by 3 desc`);
+    const recent = await q(sql`select a.created_at, a.label, a.model, a.input_tokens, a.output_tokens, a.cache_read_tokens, a.cache_write_tokens,
+        a.cost_inr, u.name as by from ai_usage a left join users u on u.id = a.user_id
+      where a.workspace_id = ${w.id} order by a.created_at desc limit 40`);
+    out.push({
+      id: w.id, name: w.name, role: w.role, members: num(w.members), records: num(w.records),
+      plan: bill.plan, planUntil: w.plan_until, periodStart: w.period_start, renewsAt: w.renews_at, bonusInr: num(w.bonus_inr),
+      allowance: { ok: bill.ok, usedInr: bill.usedInr, actionsUsed: bill.actionsUsed, actionsLimit: bill.actionsLimit, actionsLeft: bill.actionsLeft,
+        periodSince: bill.periodSince ?? null, periodEnds: bill.periodEnds, provider: bill.subscription?.provider ?? null, status: bill.subscription?.status ?? null },
+      byLabel: byLabel.map((r) => ({ label: r.label, calls: num(r.calls), inr: Math.round(num(r.inr) * 100) / 100, avgInr: Math.round(num(r.avg_inr) * 100) / 100,
+        avgIn: Math.round(num(r.avg_in)), avgOut: Math.round(num(r.avg_out)), avgCacheWrite: Math.round(num(r.avg_cw)) })),
+      recent: recent.map((r) => ({ at: r.created_at, label: r.label, model: r.model, by: r.by || "", input: num(r.input_tokens), output: num(r.output_tokens),
+        cacheRead: num(r.cache_read_tokens), cacheWrite: num(r.cache_write_tokens), inr: Math.round(num(r.cost_inr) * 100) / 100 })),
+    });
+  }
+  return { person: { name: person.name || "", contact: person.email || person.phone || "", since: person.created_at, freeActionsUsed: num(person.free_actions_used) }, workspaces: out };
+}

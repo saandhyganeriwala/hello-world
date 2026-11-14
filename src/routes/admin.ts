@@ -5,7 +5,7 @@
 import { Hono, type MiddlewareHandler } from "hono";
 import { env } from "../env.js";
 import { requireUser, type AppEnv } from "../auth/session.js";
-import { adminStats, trackVisit } from "../domain/analytics.js";
+import { adminStats, trackVisit, usageLookup } from "../domain/analytics.js";
 import { listFeedback, setFeedbackStatus } from "../domain/feedback.js";
 
 export const admin = new Hono<AppEnv>();
@@ -42,3 +42,4 @@ admin.patch("/admin/feedback/:id", async (c) => {
   if (!/^[0-9a-f-]{36}$/i.test(c.req.param("id"))) return c.json({ error: "Not found" }, 404);
   return (await setFeedbackStatus(c.req.param("id"), b.status)) ? c.json({ ok: true }) : c.json({ error: "Not found" }, 404);
 });
+admin.get("/admin/usage", async (c) => c.json(await usageLookup(String(c.req.query("who") || "").slice(0, 120))));

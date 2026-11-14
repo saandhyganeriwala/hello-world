@@ -61,6 +61,8 @@ export type Billing = {
   renewsAt: number | null;
   /** The workspace's subscription, if it has one: active, pending (a renewal is being retried), cancelling, cancelled, halted. */
   subscription: { status: string; currency: string; amount: number; provider: string } | null;
+  /** Pro: when the current allowance period began. */
+  periodSince?: number;
 };
 
 /** Where the workspace stands right now. Everything is shown in actions; Pro is metered in rupees underneath. */
@@ -114,7 +116,7 @@ export async function billingStatus(workspaceId: string): Promise<Billing> {
   const budget = env.proMonthlyAiInr + bonusInr, leftInr = Math.max(0, budget - used);
   const limit = Math.round(budget / env.actionInr), usedA = Math.min(limit, Math.round(used / env.actionInr));
   const renews = common.subscription && ["active", "pending"].includes(common.subscription.status) ? periodEnds : null;
-  return { plan: "pro", planUntil: w!.planUntil!.getTime(), periodEnds, ok: leftInr > 0.01,
+  return { plan: "pro", planUntil: w!.planUntil!.getTime(), periodEnds, periodSince: since.getTime(), ok: leftInr > 0.01,
     actionsUsed: usedA, actionsLimit: limit, actionsLeft: Math.max(0, Math.floor(leftInr / env.actionInr)),
     bonusActions: Math.round(bonusInr / env.actionInr), usedInr: round2(used), ...common, renewsAt: renews };
 }
