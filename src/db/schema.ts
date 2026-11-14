@@ -130,7 +130,11 @@ export const aiUsage = pgTable("ai_usage", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-  label: text("label").notNull(),                 // understand, understand+image, import-plan
+  label: text("label").notNull(),                 // understand, understand+image, understand+file, import-plan, custom-view, transcribe
+  // What caused the charge: the chat message (a typed message, screenshot, shared file or "Imported <file>"), and a
+  // short description, e.g. 'Screenshot: "paid in cash"', 'Import: orders.xlsx (2 sheets, 340 rows)', 'Voice note · 12s'.
+  messageId: uuid("message_id").references(() => messages.id, { onDelete: "set null" }),
+  source: text("source"),
   model: text("model").notNull(),
   inputTokens: integer("input_tokens").notNull().default(0),
   outputTokens: integer("output_tokens").notNull().default(0),

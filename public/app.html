@@ -2534,7 +2534,7 @@ async function sendMessage(text, images, thumbs){
   let out;
   try{
     const viewing=(view.mode==='list'&&view.section&&w.sections[view.section])?{section:view.section,view:(()=>{ const v=Object.assign({},activeView(view.section)); delete v.saved; delete v.custom; delete v.code; return v; })()}:null;
-    out=await api('POST','/workspaces/'+w.id+'/messages',{text,images:uploads,docs,thumbs:thumbs||[],contextRecordId:ctxId,viewing});
+    out=await api('POST','/workspaces/'+w.id+'/messages',{text,images:uploads,docs,thumbs:thumbs||[],contextRecordId:ctxId,viewing,voiceUsageIds:voiceUsageIds.splice(0)});
   }catch(e){
     const i=w.messages.indexOf(temp); if(i>=0) w.messages.splice(i,1);
     if(text&&!$('#input').value){ $('#input').value=text; autosize(); }
@@ -2792,6 +2792,8 @@ function recSegment(sess){
 function recRelease(){ clearTimeout(voice.segT); clearInterval(voice.tick); cancelAnimationFrame(voice.raf);
   if(voice.stream) voice.stream.getTracks().forEach(t=>t.stop()); voice.stream=null; try{ voice.ac&&voice.ac.close(); }catch(e){} voice.ac=null; voice.an=null; voice.mr=null;
   document.querySelectorAll('#listening .wave i').forEach(b=>{ b.style.animation=''; b.style.height=''; }); }
+// Transcription charges waiting for the message they turn into (the server links them when it's sent).
+let voiceUsageIds=[];
 async function recUpload(sess){
   recRelease(); $('#listenHint').textContent='Writing it out…';
   let text='', failed=null;
@@ -2799,7 +2801,7 @@ async function recUpload(sess){
     try{ const r=await fetch('/api/workspaces/'+ws().id+'/transcribe',{method:'POST',credentials:'same-origin',body:sg.blob,
         headers:{'content-type':sg.blob.type||'audio/webm','x-duration-ms':String(sg.ms),'x-client-id':CLIENT_ID}});
       const j=await r.json().catch(()=>({})); if(!r.ok){ failed=j.error||'Couldn’t transcribe that.'; if(r.status===402) setTimeout(planSheet,500); break; }
-      text+=' '+(j.text||''); }
+      text+=' '+(j.text||''); if(j.usageId) voiceUsageIds.push(j.usageId); }
     catch(e){ failed='Voice needs a connection — try again'; break; } }
   if(sess!==voice.session) return;
   if(text.trim()){ $('#input').value=(voice.base+text).replace(/\s+/g,' ').trim(); autosize(); updateSend(); scheduleRefresh(); }

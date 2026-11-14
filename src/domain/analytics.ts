@@ -5,6 +5,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { pageViews } from "../db/schema.js";
 import { env } from "../env.js";
+import { GPT_PRICES, GPT_TOKEN_RATIO, gptCostUsd, type TokenSums } from "../ai/compare.js";
 
 const TZ = "Asia/Kolkata";
 async function q<T = any>(query: SQL): Promise<T[]> {
@@ -195,6 +196,24 @@ async function firstActivity() {
 }
 
 // ---- usage lookup (admin): what used a workspace's AI allowance ----
+const r2 = (n: number) => Math.round(n * 100) / 100;
+const SUMS = sql`count(*)::int as calls, sum(cost_inr)::float8 as inr, sum(cost_usd)::float8 as usd,
+  sum(input_tokens)::float8 as input, sum(output_tokens)::float8 as output, sum(cache_read_tokens)::float8 as cache_read, sum(cache_write_tokens)::float8 as cache_write`;
+const sumsOf = (r: any): TokenSums => ({ label: r.label, input: num(r.input), output: num(r.output), cacheRead: num(r.cache_read), cacheWrite: num(r.cache_write), costUsd: num(r.usd) });
+function kindRow(r: any) {
+  const calls = num(r.calls) || 1, t = sumsOf(r);
+  return { label: r.label, calls: num(r.calls), inr: r2(num(r.inr)), avgInr: r2(num(r.inr) / calls),
+    avgIn: Math.round(t.input / calls), avgOut: Math.round(t.output / calls), avgCacheRead: Math.round(t.cacheRead / calls), avgCacheWrite: Math.round(t.cacheWrite / calls),
+    gptAvgInr: Object.fromEntries(GPT_PRICES.map((p) => [p.id, r2(gptCostUsd(t, p) * env.usdInr / calls)])) };
+}
+/** Totals for these calls: what they cost on Claude, and what they'd have cost on each GPT model. */
+function compareRows(rows: any[]) {
+  const actions = rows.filter((r) => r.label !== "transcribe" && r.label !== "custom-view").reduce((n, r) => n + num(r.calls), 0) || 1;
+  const claudeInr = rows.reduce((n, r) => n + num(r.inr), 0);
+  const line = (id: string, label: string, inr: number) => ({ id, label, inr: r2(inr), perAction: r2(inr / actions), actionsIn225: inr ? Math.floor(env.proMonthlyAiInr / (inr / actions)) : 0 });
+  return { actions, models: [line("claude", "Claude (actual)", claudeInr),
+    ...GPT_PRICES.map((p) => line(p.id, p.label, rows.reduce((n, r) => n + gptCostUsd(sumsOf(r), p) * env.usdInr, 0)))] };
+}
 // Finds the workspaces a person (by email or phone) belongs to, and for each one shows the plan, the current
 // allowance and where it went: AI cost by kind of request since the period began, and the latest calls.
 export async function usageLookup(who: string) {
@@ -212,22 +231,30 @@ export async function usageLookup(who: string) {
   for (const w of wss) {
     const bill = await billingStatus(w.id);
     const since = new Date(bill.plan === "pro" && bill.periodSince ? bill.periodSince : Date.UTC(2000, 0, 1)).toISOString();
-    const byLabel = await q(sql`select label, count(*)::int as calls, sum(cost_inr)::float8 as inr, avg(cost_inr)::float8 as avg_inr,
-        avg(input_tokens)::float8 as avg_in, avg(output_tokens)::float8 as avg_out, avg(cache_write_tokens)::float8 as avg_cw
-      from ai_usage where workspace_id = ${w.id} and created_at >= ${since}::timestamptz group by label order by 3 desc`);
+    const byLabel = await q(sql`select label, ${SUMS}
+      from ai_usage where workspace_id = ${w.id} and created_at >= ${since}::timestamptz group by label order by inr desc`);
     const recent = await q(sql`select a.created_at, a.label, a.model, a.input_tokens, a.output_tokens, a.cache_read_tokens, a.cache_write_tokens,
-        a.cost_inr, u.name as by from ai_usage a left join users u on u.id = a.user_id
+        a.cost_inr, a.cost_usd, a.source, a.message_id, u.name as by from ai_usage a left join users u on u.id = a.user_id
       where a.workspace_id = ${w.id} order by a.created_at desc limit 40`);
     out.push({
       id: w.id, name: w.name, role: w.role, members: num(w.members), records: num(w.records),
       plan: bill.plan, planUntil: w.plan_until, periodStart: w.period_start, renewsAt: w.renews_at, bonusInr: num(w.bonus_inr),
       allowance: { ok: bill.ok, usedInr: bill.usedInr, actionsUsed: bill.actionsUsed, actionsLimit: bill.actionsLimit, actionsLeft: bill.actionsLeft,
         periodSince: bill.periodSince ?? null, periodEnds: bill.periodEnds, provider: bill.subscription?.provider ?? null, status: bill.subscription?.status ?? null },
-      byLabel: byLabel.map((r) => ({ label: r.label, calls: num(r.calls), inr: Math.round(num(r.inr) * 100) / 100, avgInr: Math.round(num(r.avg_inr) * 100) / 100,
-        avgIn: Math.round(num(r.avg_in)), avgOut: Math.round(num(r.avg_out)), avgCacheWrite: Math.round(num(r.avg_cw)) })),
-      recent: recent.map((r) => ({ at: r.created_at, label: r.label, model: r.model, by: r.by || "", input: num(r.input_tokens), output: num(r.output_tokens),
-        cacheRead: num(r.cache_read_tokens), cacheWrite: num(r.cache_write_tokens), inr: Math.round(num(r.cost_inr) * 100) / 100 })),
+      byLabel: byLabel.map(kindRow),
+      compare: compareRows(byLabel),
+      recent: recent.map((r) => { const t = { label: r.label, input: num(r.input_tokens), output: num(r.output_tokens), cacheRead: num(r.cache_read_tokens), cacheWrite: num(r.cache_write_tokens), costUsd: num(r.cost_usd) };
+        return { at: r.created_at, model: r.model, by: r.by || "", source: r.source || "", messageId: r.message_id || null, ...t,
+          inr: r2(num(r.cost_inr)), gpt: Object.fromEntries(GPT_PRICES.map((p) => [p.id, r2(gptCostUsd(t, p) * env.usdInr)])) }; }),
     });
   }
-  return { person: { name: person.name || "", contact: person.email || person.phone || "", since: person.created_at, freeActionsUsed: num(person.free_actions_used) }, workspaces: out };
+  // Every AI call this person made, in any workspace, since they joined.
+  const mine = await q(sql`select label, ${SUMS} from ai_usage where user_id = ${person.id} group by label order by inr desc`);
+  return {
+    person: { name: person.name || "", contact: person.email || person.phone || "", since: person.created_at, freeActionsUsed: num(person.free_actions_used) },
+    allTime: { byLabel: mine.map(kindRow), compare: compareRows(mine) },
+    models: GPT_PRICES.map((p) => ({ id: p.id, label: p.label, note: p.note || "", source: p.source || "", in: p.in, cachedIn: p.cachedIn, out: p.out })),
+    tokenRatio: GPT_TOKEN_RATIO, actionInr: env.actionInr, budgetInr: env.proMonthlyAiInr,
+    workspaces: out,
+  };
 }

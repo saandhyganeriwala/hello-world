@@ -8,7 +8,7 @@
 // into the first Pro period, so nothing is lost. Without credit, CRUD
 // still saves plain records with the on-device parser; questions, screenshots, imports and
 // interface changes wait for an upgrade.
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { aiUsage, members, payments, subscriptions, users, workspaces } from "../db/schema.js";
 import { env } from "../env.js";
@@ -30,12 +30,17 @@ export function priceUsd(u: Pick<AiUsage, "model" | "input" | "output" | "cacheR
   return (u.input * p.in + u.output * p.out + u.cacheRead * p.cacheRead + u.cacheWrite * p.cacheWrite) / 1e6;
 }
 
-export async function recordUsage(workspaceId: string, userId: string | null, u: AiUsage, costUsdOverride?: number) {
+/** What an AI charge was for: the chat message it belongs to and a short description. */
+export type UsageLink = { messageId?: string | null; source?: string | null };
+
+export async function recordUsage(workspaceId: string, userId: string | null, u: AiUsage, costUsdOverride?: number, link: UsageLink = {}): Promise<string | null> {
   const costUsd = costUsdOverride ?? priceUsd(u), costInr = costUsd * env.usdInr, db = getDb();
-  await db.insert(aiUsage).values({
+  const [row] = await db.insert(aiUsage).values({
     workspaceId, userId, label: u.label, model: u.model, inputTokens: u.input, outputTokens: u.output,
     cacheReadTokens: u.cacheRead, cacheWriteTokens: u.cacheWrite, costUsd, costInr,
-  });
+    messageId: link.messageId ?? null, source: link.source ? link.source.slice(0, 200) : null,
+  }).returning({ id: aiUsage.id });
+  const usageId = row?.id ?? null;
   // On the free plan it counts against the owner's personal free actions. A voice note's
   // transcription isn't an action of its own — the message it becomes is.
   const [w] = await db.select({ plan: workspaces.plan, planUntil: workspaces.planUntil, owner: workspaces.createdBy })
@@ -47,6 +52,15 @@ export async function recordUsage(workspaceId: string, userId: string | null, u:
       ...(isAction(u.label) ? { freeActionsUsed: sql`${users.freeActionsUsed} + 1` } : {}),
     }).where(eq(users.id, w.owner));
   }
+  return usageId;
+}
+
+/** A voice note is transcribed before its message exists: once the message is sent, point those charges at it. */
+export async function linkUsageToMessage(workspaceId: string, userId: string, usageIds: string[], messageId: string) {
+  const ids = usageIds.filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 10);
+  if (!ids.length) return;
+  await getDb().update(aiUsage).set({ messageId })
+    .where(and(eq(aiUsage.workspaceId, workspaceId), eq(aiUsage.userId, userId), isNull(aiUsage.messageId), inArray(aiUsage.id, ids)));
 }
 // A voice note's transcription and drawing a custom view's code ride along with the message that caused them.
 const isAction = (label: string) => label !== "transcribe" && label !== "custom-view";

@@ -47,6 +47,15 @@ function limitMessage(b: Billing) {
     : `You've used your ${env.freeActions} free AI actions, so questions, screenshots and view changes are paused. Plain records are still saved.`;
 }
 
+/** A short description of what a message's AI charge was for, e.g. 'Screenshot: "paid in cash"' or 'Message: "Order from…"'. */
+function usageSource(input: SendInput) {
+  const docs = input.docs ?? [], t = input.text.replace(/\s+/g, " ").trim();
+  const quote = t ? `: "${t.length > 90 ? t.slice(0, 90) + "…" : t}"` : "";
+  if (docs.length) return `File${docs.length > 1 ? "s" : ""} ${docs.map((d) => d.name).join(", ")}${input.images.length ? ` + ${input.images.length} screenshot${input.images.length > 1 ? "s" : ""}` : ""}${quote}`;
+  if (input.images.length) return `${input.images.length > 1 ? `${input.images.length} screenshots` : "Screenshot"}${quote}`;
+  return `Message${quote}`;
+}
+
 function attachmentLabel(images: number, docs: DocInput[]) {
   const parts: string[] = [];
   if (images) parts.push(images > 1 ? `${images} screenshots` : "Screenshot");
@@ -62,7 +71,7 @@ async function botReply(workspaceId: string, text: string) {
  * The whole "someone sent a message" flow:
  * save it → ask Claude what it means → record / answer / change the UI / ignore → tell teammates.
  */
-export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ result: SendResult; effects: Effect[] }> {
+export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ result: SendResult; effects: Effect[]; messageId: string }> {
   const db = getDb();
   const ws = ctx.workspaceId;
   const docs = input.docs ?? [];
@@ -94,7 +103,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
   if (aiEnabled() && !outOfCredit) {
     try {
       ai = await understand({
-        onUsage: (u) => recordUsage(ws, ctx.userId, u),
+        onUsage: (u) => recordUsage(ws, ctx.userId, u, undefined, { messageId: msg.id, source: usageSource(input) }),
         text: input.text, snapshot: await buildSnapshot(ws), contextRecordId: input.contextRecordId, images: input.images, docs,
         viewing: input.viewing ?? null,
       });
@@ -112,7 +121,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
       await botReply(ws, ai.answer.trim() || "I don't have anything on that yet.");
     } else if (ai?.kind === "command") {
       result.kind = "command";
-      ai.commands = await drawCustomViews(ws, ai.commands, (u) => recordUsage(ws, ctx.userId, u));
+      ai.commands = await drawCustomViews(ws, ai.commands, (u, view) => recordUsage(ws, ctx.userId, u, undefined, { messageId: msg.id, source: `Custom view: ${view}` }));
       const out = await db.transaction((tx) => applyCommands(tx, ctx, ai!.commands));
       effects = out.effects;
       result.focus = out.goto || ai.focus || null;
@@ -167,7 +176,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
       .where(eq(messages.id, msg.id));
     publish(ws, { type: "change", by: input.clientId });
   }
-  return { result, effects };
+  return { result, effects, messageId: msg.id };
 }
 
 
@@ -176,7 +185,7 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
  * applied, the spec is turned into drawing code (with the section's real fields and a sample of records),
  * so the view appears in the same reply. When a custom view is changed, its previous code is the starting point.
  */
-async function drawCustomViews(ws: string, commands: UnderstandingT["commands"], onUsage: (u: any) => void | Promise<void>) {
+async function drawCustomViews(ws: string, commands: UnderstandingT["commands"], onUsage: (u: any, view: string) => unknown) {
   const db = getDb();
   return Promise.all(commands.map(async (cmd) => {
     if (cmd.type !== "addView" || !cmd.section) return cmd;
@@ -192,7 +201,7 @@ async function drawCustomViews(ws: string, commands: UnderstandingT["commands"],
     const previous = ((sec?.views as any[]) || []).map(sanitizeView).find((x) => x && x.type === "custom" && x.name.toLowerCase() === v.name.toLowerCase())?.code || "";
     try {
       const out = await generateCustomView({ section: cmd.section, spec: v.spec, previous: previous || undefined, fields, count: recs.length,
-        sample: recs.slice(0, 15).map((r) => Object.fromEntries(Object.entries(r.fields).map(([k, x]) => [k, String(x).slice(0, 60)]))), onUsage });
+        sample: recs.slice(0, 15).map((r) => Object.fromEntries(Object.entries(r.fields).map(([k, x]) => [k, String(x).slice(0, 60)]))), onUsage: (u) => onUsage(u, v.name) });
       if (out?.code) v.code = out.code.replace(/^```(?:js|javascript)?\s*|```\s*$/g, "").trim();
     } catch (e) { console.error("[ai] custom view failed", e); }
     if (!v.code && previous) v.code = previous; // keep the old drawing rather than break the view

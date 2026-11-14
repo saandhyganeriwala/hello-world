@@ -19,7 +19,7 @@ type DocInput = { name: string; mediaType: "application/pdf" | "text/plain"; dat
 
 // What one Claude call used — the server prices it and charges the workspace (src/domain/billing.ts).
 export type AiUsage = { label: string; model: string; input: number; output: number; cacheRead: number; cacheWrite: number };
-export type OnUsage = (u: AiUsage) => void | Promise<void>;
+export type OnUsage = (u: AiUsage) => unknown;
 
 // The system prompt is cached for an hour (writes cost 2× input, reads 0.1×): messages spread
 // through a working day keep hitting the cache instead of re-writing it every 5 minutes.

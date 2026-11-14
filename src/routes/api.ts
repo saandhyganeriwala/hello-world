@@ -20,7 +20,7 @@ import { processMessage, type DocInput, type ImageInput } from "../domain/messag
 import { applyImport, fallbackPlan, type Sheet } from "../domain/import.js";
 import { cleanKey, esc } from "../domain/helpers.js";
 import { removeView, sanitizeView, upsertView } from "../domain/views.js";
-import { assertCanAddMember, billingStatus, LimitError, proActions, recordUsage } from "../domain/billing.js";
+import { assertCanAddMember, billingStatus, LimitError, linkUsageToMessage, proActions, recordUsage } from "../domain/billing.js";
 import { transcribe, transcribeCostUsd, transcribeProvider, TranscribeError } from "../ai/transcribe.js";
 import { publish, subscribe } from "../realtime.js";
 
@@ -339,6 +339,9 @@ api.post("/workspaces/:id/messages", bigBody, async (c) => {
         ? { section: str(b.viewing.section, 80), view: sanitizeView(b.viewing.view) } : null,
     },
   );
+  // A voice note's transcription happened before this message existed: link it now.
+  if (out.messageId && Array.isArray(b.voiceUsageIds) && b.voiceUsageIds.length)
+    await linkUsageToMessage(id, user.id, b.voiceUsageIds.map(String), out.messageId).catch(() => {});
   return c.json({ ...out, state: await stateOf(c, id) });
 });
 
@@ -378,9 +381,10 @@ api.post("/workspaces/:id/transcribe", bodyLimit({ maxSize: 12 * 1024 * 1024, on
   const prompt = words.size ? `A short business voice note, often Indian English or Hinglish. Names and items that may come up: ${[...words].slice(0, 80).join(", ")}.` : "A short business voice note, often Indian English or Hinglish.";
   try {
     const out = await transcribe(audio, c.req.header("content-type") || "audio/webm", { prompt });
-    await recordUsage(id, user.id, { label: "transcribe", model: out.model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, transcribeCostUsd(out.provider, out.model, seconds));
+    const usageId = await recordUsage(id, user.id, { label: "transcribe", model: out.model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      transcribeCostUsd(out.provider, out.model, seconds), { source: `Voice note · ${Math.round(seconds)}s` });
     console.log(JSON.stringify({ voice: out.provider, model: out.model, seconds: Math.round(seconds), chars: out.text.length }));
-    return c.json({ text: out.text });
+    return c.json({ text: out.text, usageId });
   } catch (e) {
     if (e instanceof TranscribeError) return c.json({ error: "Sorry — I couldn't make out that voice note. Please try again." }, 502);
     throw e;
@@ -427,7 +431,8 @@ api.post("/workspaces/:id/import", bigBody, async (c) => {
           sample: s.rows.slice(0, 8).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.slice(0, 40)]))),
         })),
         existing,
-        onUsage: (u) => recordUsage(id, user.id, u),
+        onUsage: (u) => recordUsage(id, user.id, u, undefined, { messageId: msg.id,
+          source: `Import: ${fileName} (${sheets.length} sheet${sheets.length > 1 ? "s" : ""}, ${sheets.reduce((n, s) => n + s.rows.length, 0)} rows)` }),
       });
     } catch (e) { console.error("[ai] import plan failed", e); }
   }

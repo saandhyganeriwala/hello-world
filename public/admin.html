@@ -194,23 +194,41 @@ main.addEventListener('click',async e=>{
 
 /* ---- usage lookup: what used a workspace's AI allowance ---- */
 const lkLabel={'understand':'Message','understand+image':'Screenshot','understand+file':'PDF / file','import-plan':'Spreadsheet import','custom-view':'Custom view built','transcribe':'Voice transcription','answer':'Answer'};
+function cmpTable(c,note){
+  return '<p class="note" style="margin:4px 0 6px">'+fmt(c.actions)+' AI action'+(c.actions===1?'':'s')+(note?' · '+note:'')+'</p>'+
+    table([{t:'Model'},{t:'Total cost',n:1},{t:'Per action',n:1},{t:'Actions in ₹225',n:1}],
+      c.models.map((m,i)=>[(i===0?'<b>':'')+esc(m.label)+(i===0?'</b>':''),inr(m.inr),inr(m.perAction),fmt(m.actionsIn225)])); }
+function kindTable(rows,models){
+  return table([{t:'Kind'},{t:'Calls',n:1},{t:'Claude total',n:1},{t:'Claude avg',n:1},...models.map(m=>({t:m.label+' avg',n:1})),{t:'Avg tokens in / cached / out',n:1}],
+    rows.map(b=>[esc(lkLabel[b.label]||b.label),fmt(b.calls),inr(b.inr),inr(b.avgInr),...models.map(m=>inr((b.gptAvgInr||{})[m.id])),
+      fmt(b.avgIn+b.avgCacheWrite)+' / '+fmt(b.avgCacheRead)+' / '+fmt(b.avgOut)])); }
 function renderLookup(r){
   const el=$('#lkOut'); if(!el) return;
   if(!r.person){ el.innerHTML='<p class="note">No one found with that email or phone.</p>'; return; }
-  const p=r.person;
+  const p=r.person, models=r.models||[];
   let h='<p class="note" style="margin-top:12px"><b>'+esc(p.name||'No name')+'</b> · '+esc(p.contact)+' · joined '+dWhen(p.since)+' · free actions used '+fmt(p.freeActionsUsed)+'</p>';
+  if(r.allTime&&r.allTime.byLabel.length){
+    h+='<div class="lk-ws"><h4>Everything this person has done, all time</h4><p class="note" style="margin:0 0 6px">Every AI call they made, in any workspace — on Claude, and what the same calls would cost on GPT models.</p>'+
+      cmpTable(r.allTime.compare)+'<h3 style="margin:14px 0 6px;font-size:13.5px">By kind of request</h3>'+kindTable(r.allTime.byLabel,models)+'</div>'; }
   for(const w of r.workspaces){ const a=w.allowance, pctUsed=a.actionsLimit?Math.min(100,a.actionsUsed/a.actionsLimit*100):0;
     h+='<div class="lk-ws"><h4>'+esc(w.name)+' '+(w.plan==='pro'?'<span class="pill">Pro</span>':'<span class="pill" style="background:var(--grid)">Free</span>')+'</h4>'+
       '<p class="note" style="margin:0">'+esc(w.role)+' · '+fmt(w.members)+' people · '+fmt(w.records)+' records'+(a.provider?' · billed via '+esc(a.provider)+' ('+esc(a.status||'')+')':'')+'</p>'+
       '<div class="meter'+(a.ok?'':' over')+'"><i style="width:'+pctUsed+'%"></i></div>'+
       '<p class="note" style="margin:0">'+fmt(a.actionsUsed)+' of '+fmt(a.actionsLimit)+' actions used'+(w.plan==='pro'?' · '+inr(a.usedInr)+' of AI cost':'')+
         (a.periodSince?' · period '+dWhen(a.periodSince)+' → '+(a.periodEnds?dWhen(a.periodEnds):'—'):'')+(a.ok?'':' · <b style="color:var(--danger)">used up</b>')+'</p>';
-    h+='<h3 style="margin:14px 0 6px;font-size:13.5px">'+(w.plan==='pro'?'This period, by kind of request':'All time, by kind of request')+'</h3>'+
-      table([{t:'Kind'},{t:'Calls',n:1},{t:'Cost',n:1},{t:'Avg per call',n:1},{t:'≈ actions each',n:1},{t:'Avg tokens in / out / cache write',n:1}],
-        w.byLabel.map(b=>[esc(lkLabel[b.label]||b.label),fmt(b.calls),inr(b.inr),inr(b.avgInr),(b.avgInr/0.45).toFixed(1),fmt(b.avgIn)+' / '+fmt(b.avgOut)+' / '+fmt(b.avgCacheWrite)]));
-    h+='<details style="margin-top:10px"><summary class="note" style="cursor:pointer">Latest '+w.recent.length+' AI calls</summary>'+
-      table([{t:'When'},{t:'Kind'},{t:'By'},{t:'In',n:1},{t:'Out',n:1},{t:'Cache read',n:1},{t:'Cache write',n:1},{t:'Cost',n:1}],
-        w.recent.map(c=>[new Date(c.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),esc(lkLabel[c.label]||c.label),esc(c.by),fmt(c.input),fmt(c.output),fmt(c.cacheRead),fmt(c.cacheWrite),inr(c.inr)]))+'</details></div>'; }
+    if(w.byLabel.length){
+      h+='<h3 style="margin:14px 0 6px;font-size:13.5px">'+(w.plan==='pro'?'This period':'All time')+': Claude vs GPT</h3>'+cmpTable(w.compare,'all members')+
+        '<h3 style="margin:14px 0 6px;font-size:13.5px">By kind of request</h3>'+kindTable(w.byLabel,models); }
+    else h+='<p class="note">No AI calls '+(w.plan==='pro'?'this period':'yet')+'.</p>';
+    const m0=models.find(m=>/mini/.test(m.id))||models[0];
+    h+='<details style="margin-top:10px"><summary class="note" style="cursor:pointer">Latest '+w.recent.length+' AI calls, and what each was for</summary>'+
+      table([{t:'When'},{t:'Kind'},{t:'For'},{t:'By'},{t:'Tokens in / cached / out',n:1},{t:'Claude',n:1},...(m0?[{t:m0.label,n:1}]:[])],
+        w.recent.map(c=>[new Date(c.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),esc(lkLabel[c.label]||c.label),
+          '<span style="white-space:normal;display:inline-block;max-width:340px">'+esc(c.source||'—')+'</span>',esc(c.by),
+          fmt(c.input+c.cacheWrite)+' / '+fmt(c.cacheRead)+' / '+fmt(c.output),inr(c.inr),...(m0?[inr((c.gpt||{})[m0.id])]:[])]))+'</details></div>'; }
+  if(models.length) h+='<details style="margin-top:14px"><summary class="note" style="cursor:pointer">How the GPT estimates are worked out</summary><p class="note">Same token counts as the Claude calls. Fresh input and Claude cache writes are priced at the GPT input price (OpenAI doesn’t charge to write its cache), cache reads at the cached-input price, output at the output price'+(r.tokenRatio!==1?', times '+r.tokenRatio+' for tokenizer differences':'')+'. Voice transcription counts at its real cost. Actions in ₹225 = the Pro budget ÷ cost per action.</p>'+
+    table([{t:'Model'},{t:'Input /1M',n:1},{t:'Cached /1M',n:1},{t:'Output /1M',n:1},{t:'Source'}],models.map(m=>[esc(m.label)+(m.note?' <span class="note">'+esc(m.note)+'</span>':''),'$'+m.in,'$'+m.cachedIn,'$'+m.out,'<span style="white-space:normal">'+esc(m.source)+'</span>']))+
+    '<p class="note">Change these with the GPT_PRICES_JSON setting on Railway if OpenAI’s prices differ.</p></details>';
   el.innerHTML=h; }
 async function runLookup(){
   const v=($('#lkIn')||{}).value||''; if(!v.trim()) return; lkLast=v.trim(); const el=$('#lkOut'); el.innerHTML='<p class="note">Looking up…</p>';
