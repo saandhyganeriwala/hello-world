@@ -606,6 +606,18 @@ body.busy #topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px
 .ws-tile{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-family:var(--display);
   font-weight:800;font-size:15px;background:var(--surface-3);color:var(--fg-2)}
 .ws-tile.on{background:var(--accent);color:#fff;box-shadow:0 2px 0 var(--hard)}
+.ex-row .ex-box{flex:none;width:22px;height:22px;border-radius:7px;border:1.5px solid var(--border-strong);display:grid;place-items:center;color:transparent;background:var(--surface)}
+.ex-row .ex-box svg{width:14px;height:14px;opacity:0;stroke:currentColor}
+.ex-row.on .ex-box svg{opacity:1;stroke:#141414;stroke-width:3}
+.ex-row.on .ex-box{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#141414)}
+.ex-cur{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--fg-2);background:var(--surface-2);border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:2px}
+.ex-fmt{margin:2px 2px 0}
+.ex-files{display:grid;gap:8px}
+.ex-file{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.ex-file .ic{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent,#141414)}
+.ex-file .ic svg{width:18px;height:18px}
+.ex-file b{display:block;font-size:14px;font-weight:650;overflow-wrap:anywhere}
+.ex-file small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .ws-lbl{margin:14px 4px 4px}.ws-lbl:first-of-type{margin-top:2px}
 .row-item.cur{background:var(--surface-2)}
 .ws-tile.add{background:transparent;border:1.5px dashed var(--border-strong);color:var(--muted)}
@@ -1570,7 +1582,7 @@ function viewsSheet(){
     '<div class="sdiv"></div><div class="vask"><label class="inv-h" for="vAsk">Want to see it another way?</label>'+
     '<textarea id="vAsk" rows="3" placeholder="Describe it — e.g. “a funnel from Leads to Contacted to Won”, or “change this to show totals by city”"></textarea>'+
     '<button class="auth-btn" id="vAskGo" style="width:100%">Make this view</button></div>'+
-    '<button class="row-item" id="czCsv"><span class="vi">'+svg('download')+'</span><span>Export CSV</span></button>'); }
+    '<button class="row-item" id="czCsv"><span class="vi">'+svg('download')+'</span><span>Export<span class="sub">CSV or Excel · this view or others</span></span></button>'); }
 function newView(type){
   const name=view.section, recs=ws().records.filter(r=>r.section===name); const amt=detectMeasure(recs), stage=detectStage(recs)||catFields(recs)[0]||'', dateF=detectDate(recs);
   const names=viewsFor(name).map(v=>v.name.toLowerCase()); let n=VIEW_LABEL[type], i=2; while(names.includes(n.toLowerCase())) n=VIEW_LABEL[type]+' '+(i++);
@@ -2045,7 +2057,7 @@ function renderCustomize(){
   if(uses('fields')) h+='<label class="cz-l">Show fields</label><div class="cz-fields">'+fs.map(f=>'<button class="cz-f'+(!d.fields.length||d.fields.includes(f)?' on':'')+'" data-czfield="'+esc(f)+'">'+esc(f)+'</button>').join('')+'</div>';
   h+=
     '<div class="cz-actions"><button class="btn primary grow" id="czSave">Save view</button><button class="btn" id="czNew">Save as new</button></div>'+
-    '<div class="cz-actions"><button class="btn grow" id="czCsv">'+svg('download')+'Export CSV</button>'+(activeView(name).custom?'<button class="btn danger" id="czDel">'+svg('trash')+'Delete view</button>':'')+'</div></div>';
+    '<div class="cz-actions"><button class="btn grow" id="czCsv">'+svg('download')+'Export</button>'+(activeView(name).custom?'<button class="btn danger" id="czDel">'+svg('trash')+'Delete view</button>':'')+'</div></div>';
   openSheet(h);
 }
 function readDraft(){ const g=id=>{ const el=document.getElementById(id); return el?el.value:null; };
@@ -2064,12 +2076,110 @@ function customizeClick(e){
   if(e.target.closest('#czSave')){ readDraft(); closeSheet(); saveView(view.section,draft,draftFrom); return true; }
   if(e.target.closest('#czNew')){ readDraft(); let n=draft.name; const names=viewsFor(view.section).map(v=>v.name.toLowerCase()); if(names.includes(n.toLowerCase())) n=n+' 2'; draft.name=n; closeSheet(); saveView(view.section,draft); return true; }
   if(e.target.closest('#czDel')){ closeSheet(); deleteView(view.section,draftFrom); return true; }
-  if(e.target.closest('#czCsv')){ exportCSV(view.section); return true; }
+  if(e.target.closest('#czCsv')){ exportSheet(view.section); return true; }
   return false; }
-function exportCSV(name){ const v=activeView(name); const recs=sortRecs(applyFilters(ws().records.filter(r=>r.section===name),v.filters),v);
-  const cols=[...fieldsOf(recs),'Recorded by','Recorded at']; const q=x=>{ const s=String(x==null?'':x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const csv=[cols.map(q).join(',')].concat(recs.map(r=>cols.map(c=>c==='Recorded by'?q(r.author):c==='Recorded at'?q(new Date(r.createdAt).toISOString()):q(r.fields[c])).join(','))).join('\n');
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'})); a.download=name.replace(/[^\w -]/g,'')+'.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500); toast('Exported '+recs.length+' rows'); }
+/* ---------------- Export (CSV or Excel) ----------------
+   The view you're looking at is ticked; tick other views, "All records" or other sections too.
+   CSV: one file per view. Excel: one file with a sheet per view.
+   In the apps the file is saved where people can find it (Files → On My iPhone → CRUD.chat, or Downloads on
+   Android) through the native "Files" plugin; older app builds fall back to the share sheet. The confirmation
+   always names each file and says where it went. */
+let exportPick=null, exportFormat='csv', lastExport=null;
+function exportChoices(name){
+  const w=ws(), out=[];
+  const add=(section,v,label,sub,current)=>{ const all=w.records.filter(r=>r.section===section);
+    const recs=v?sortRecs(applyFilters(all,v.filters),v):all.slice().sort((a,b)=>b.createdAt-a.createdAt);
+    out.push({key:section+'\u0001'+(v?v.name:'*'),section,view:v,label,sub,current,recs}); };
+  const cur=activeView(name);
+  viewsFor(name).forEach(v=>add(name,v,v.name,(v.filters||[]).length?'Filtered':'',v.name===cur.name));
+  add(name,null,'All records','Every field, no filters',false);
+  w.order.filter(n=>n!==name).forEach(n=>{ const v=activeView(n); add(n,v,n,v.name,false); });
+  return out; }
+function exportCols(recs,v){
+  let cols=(v&&v.fields&&v.fields.length?v.fields.filter(f=>recs.some(r=>val(r,f)!=='')||true):fieldsOf(recs));
+  const twin=cols.includes('Title')&&cols.find(c=>c!=='Title'&&recs.length&&recs.every(r=>String(val(r,c))===String(val(r,'Title'))));
+  if(twin) cols=cols.filter(c=>c!=='Title');
+  return [...cols,'Recorded by','Recorded at']; }
+function stamp(t){ const d=new Date(t), z=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes()); }
+function exportRows(recs,cols){ return recs.map(r=>cols.map(c=>c==='Recorded by'?(r.author||''):c==='Recorded at'?stamp(r.createdAt):String(val(r,c)))); }
+function safeName(s){ return String(s||'').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,' ').replace(/\s+/g,' ').trim().slice(0,80)||'Export'; }
+function todayLabel(){ return new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+function exportSheet(name){
+  const ch=exportChoices(name);
+  if(!exportPick||exportPick.section!==name) exportPick={section:name,keys:new Set(ch.filter(c=>c.current).map(c=>c.key))};
+  const pick=exportPick.keys, mine=ch.filter(c=>c.section===name), others=ch.filter(c=>c.section!==name), n=ch.filter(c=>pick.has(c.key)).length;
+  if(exportFormat==='xlsx'||n>1) loadXLSX().catch(()=>{});
+  const row=c=>'<button class="row-item ex-row'+(pick.has(c.key)?' on':'')+'" data-expick="'+esc(c.key)+'"><span class="ex-box">'+svg('check')+'</span>'+
+    '<span>'+esc(c.label)+(c.current?' <span class="ex-cur">Current</span>':'')+'<span class="sub">'+[c.sub,c.recs.length+' row'+(c.recs.length===1?'':'s')].filter(Boolean).map(esc).join(' · ')+'</span></span></button>';
+  const files=exportFormat==='xlsx'?1:n;
+  openSheet('<h3>Export</h3>'+
+    '<div class="sh-lbl ws-lbl">From “'+esc(name)+'”</div>'+mine.map(row).join('')+
+    (others.length?'<div class="sh-lbl ws-lbl">Other sections</div>'+others.map(row).join(''):'')+
+    '<div class="sh-lbl ws-lbl">Format</div><div class="cz-seg ex-fmt"><button data-exfmt="csv" class="'+(exportFormat==='csv'?'on':'')+'">CSV</button><button data-exfmt="xlsx" class="'+(exportFormat==='xlsx'?'on':'')+'">Excel</button></div>'+
+    '<div class="note" style="margin:6px 4px 12px">'+(exportFormat==='csv'?(n>1?'One CSV file for each view you ticked.':'A CSV file opens in Excel, Google Sheets or Numbers.'):(n>1?'One Excel file, with a sheet for each view you ticked.':'An Excel file (.xlsx).'))+'</div>'+
+    '<button class="btn primary grow" id="exGo" style="width:100%;justify-content:center"'+(n?'':' disabled')+'>'+(n?'Export '+(files>1?files+' files':'file'):'Tick at least one view')+'</button>');
+}
+function exportClick(e){
+  const p=e.target.closest('[data-expick]'); if(p){ const k=p.dataset.expick; exportPick.keys.has(k)?exportPick.keys.delete(k):exportPick.keys.add(k); exportSheet(exportPick.section); return true; }
+  const f=e.target.closest('[data-exfmt]'); if(f){ exportFormat=f.dataset.exfmt; exportSheet(exportPick.section); return true; }
+  if(e.target.closest('#exGo')){ runExport(); return true; }
+  if(e.target.closest('#exShare')){ shareExport(); return true; }
+  if(e.target.closest('#exDone')){ closeSheet(); return true; }
+  return false; }
+async function buildExportFiles(){
+  const name=exportPick.section, w=ws(), picked=exportChoices(name).filter(c=>exportPick.keys.has(c.key)), day=todayLabel(), files=[];
+  const label=c=>c.section===name&&c.view?c.section+' - '+c.view.name:c.view?c.section+' - '+c.view.name:c.section+' - All records';
+  if(exportFormat==='csv'){
+    const q=x=>{ const s=String(x==null?'':x); return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+    for(const c of picked){ const cols=exportCols(c.recs,c.view), rows=exportRows(c.recs,cols);
+      const csv=[cols,...rows].map(r=>r.map(q).join(',')).join('\r\n');
+      files.push({file:new File(['﻿'+csv],safeName(label(c)+' - '+day)+'.csv',{type:'text/csv'}),rows:c.recs.length}); }
+  } else {
+    const XLSX=await loadXLSX(); const wb=XLSX.utils.book_new(), used=new Set(); let total=0;
+    for(const c of picked){ const cols=exportCols(c.recs,c.view);
+      let sn=safeName(label(c)).replace(/[\[\]]/g,'').slice(0,31); let i=2; while(used.has(sn.toLowerCase())){ sn=sn.slice(0,28)+' '+(i++); } used.add(sn.toLowerCase());
+      // Plain numbers become real numbers (so Excel can add them up); 0-led values like phone numbers stay text.
+      const cell=v=>/^-?(0|[1-9]\d{0,14})(\.\d+)?$/.test(v)?Number(v):v;
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([cols,...exportRows(c.recs,cols).map(r=>r.map(cell))]),sn); total+=c.recs.length; }
+    const sections=[...new Set(picked.map(c=>c.section))];
+    const base=picked.length===1?label(picked[0]):sections.length===1?sections[0]:w.name;
+    const data=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    files.push({file:new File([data],safeName(base+' - '+day)+'.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),rows:total,sheets:picked.length}); }
+  return files; }
+function fileToB64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=rej; r.readAsDataURL(f); }); }
+const canShareFiles=fs=>{ try{ return !!(navigator.share&&navigator.canShare&&navigator.canShare({files:fs})); }catch(e){ return false; } };
+async function runExport(){
+  const btn=$('#exGo'); if(btn){ btn.disabled=true; btn.textContent='Exporting…'; }
+  let files; try{ files=await buildExportFiles(); }catch(e){ toast('Couldn’t make the file. Try CSV.'); exportSheet(exportPick.section); return; }
+  const list=files.map(x=>x.file); let where='', how='saved';
+  if(NATIVE){
+    try{ const r=await nativeCall('Files','save',{files:await Promise.all(list.map(async f=>({name:f.name,mime:f.type,data:await fileToB64(f)})))});
+      where=r&&r.where||''; how='native'; if(r&&Array.isArray(r.names)) files.forEach((x,i)=>{ if(r.names[i]) x.saved=r.names[i]; }); }
+    catch(e){ // an app build without the Files plugin: hand the file to the share sheet
+      if(canShareFiles(list)){ try{ await navigator.share({files:list}); how='shared'; }catch(err){ if(err&&err.name==='AbortError'){ exportSheet(exportPick.section); return; } how='failed'; } }
+      else how='failed'; }
+  } else {
+    list.forEach((f,i)=>setTimeout(()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); },i*450));
+    where=/iPhone|iPad|iPod/.test(navigator.userAgent)?'the Files app → Downloads':/Android/.test(navigator.userAgent)?'your Downloads folder (Files app → Downloads)':'your Downloads folder';
+  }
+  lastExport={files,how};
+  exportDone(files,how,where); }
+function exportDone(files,how,where){
+  const many=files.length>1;
+  const msg=how==='native'?(many?'Saved in ':'Saved in ')+esc(where||'your phone')+'.':
+    how==='shared'?'Sent to the place you picked. To keep it on your phone, choose “Save to Files” in the share menu.':
+    how==='failed'?'This version of the app can’t save files. Update CRUD.chat, or export from crud.chat in a browser.':
+    'Downloaded to '+esc(where)+'.';
+  openSheet('<h3>'+(how==='failed'?'Couldn’t export':'Exported')+'</h3>'+
+    '<div class="ex-files">'+files.map(x=>'<div class="ex-file"><span class="ic">'+svg(/xlsx$/.test(x.file.name)?'grid':'note')+'</span><span><b>'+esc(x.saved||x.file.name)+'</b><small>'+
+      x.rows+' row'+(x.rows===1?'':'s')+(x.sheets>1?' · '+x.sheets+' sheets':'')+'</small></span></div>').join('')+'</div>'+
+    '<div class="note" style="margin:10px 4px 14px;font-size:14px">'+msg+'</div>'+
+    '<div class="sh-btns">'+(how!=='failed'&&(NATIVE||canShareFiles(files.map(x=>x.file)))?'<button class="btn grow" id="exShare">'+svg('share')+'Share</button>':'')+'<button class="btn primary grow" id="exDone">Done</button></div>'); }
+async function shareExport(){
+  if(!lastExport) return; const list=lastExport.files.map(x=>x.file);
+  if(NATIVE){ try{ await nativeCall('Files','share',{names:lastExport.files.map(x=>x.saved||x.file.name)}); return; }catch(e){} }
+  if(canShareFiles(list)){ try{ await navigator.share({files:list}); }catch(e){} } else toast('Sharing isn’t available here'); }
 function askForView(){ const t=(($('#vAsk')||{}).value||'').trim(); if(!t){ toast('Describe the view you want'); return; }
   closeSheet(); sendMessage(t); }
 function viewClick(e){
@@ -3218,6 +3328,7 @@ function sheetClick(e){
   if(e.target.closest('#mWs')){ workspaceSheet(); return; }
   if(e.target.closest('#mSearch')){ closeSheet(); openSearch(); return; }
   if(e.target.closest('#mName')){ nameSheet(); return; }
+  if(exportClick(e)) return;
   if(e.target.closest('#mFeedback')){ feedbackSheet(); return; }
   if(e.target.closest('#fbSend')){ sendFeedback(e.target.closest('#fbSend')); return; }
   if(e.target.closest('#mLogout')){ logout(); return; }

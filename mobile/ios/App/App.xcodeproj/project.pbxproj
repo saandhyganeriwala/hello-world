@@ -18,6 +18,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		7C1A5E0100000000000000A2 /* StorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1A5E0100000000000000A1 /* StorePlugin.swift */; };
 		7C1A5E0100000000000000B2 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1A5E0100000000000000B1 /* MainViewController.swift */; };
+		8590D244FF6199DD376B97C8 /* FilesPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C304AE64705C8247F5EF53A9 /* FilesPlugin.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		96F96027F0D861F8C5FC0517 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E8D2B6BD2518AE0FE91C5E /* ShareInbox.swift */; };
 		A19109E65A120E64298C6EF4 /* ShareInPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AB9D6F9A51A332A1C2878D4 /* ShareInPlugin.swift */; };
@@ -72,6 +73,7 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		9F8E54687A805329990C52A0 /* App.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		C304AE64705C8247F5EF53A9 /* FilesPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FilesPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -138,6 +140,7 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				5AB9D6F9A51A332A1C2878D4 /* ShareInPlugin.swift */,
 				9F8E54687A805329990C52A0 /* App.entitlements */,
+				C304AE64705C8247F5EF53A9 /* FilesPlugin.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -276,6 +279,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A19109E65A120E64298C6EF4 /* ShareInPlugin.swift in Sources */,
 				96F96027F0D861F8C5FC0517 /* ShareInbox.swift in Sources */,
+				8590D244FF6199DD376B97C8 /* FilesPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

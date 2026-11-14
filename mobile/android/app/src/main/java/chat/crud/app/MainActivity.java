@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // Plugins that live in this app (not in npm packages) must be registered before super.onCreate.
         registerPlugin(StorePlugin.class);
         registerPlugin(ShareInPlugin.class);
+        registerPlugin(FilesPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
