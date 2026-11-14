@@ -616,6 +616,9 @@ body.busy #topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px
 .ex-file{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
 .ex-file .ic{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent,#141414)}
 .ex-file .ic svg{width:18px;height:18px}
+.ex-file .ex-dl{margin-left:auto;flex:none;padding:8px 12px;text-decoration:none;font-size:14px}
+.ex-file .ex-dl svg{width:15px;height:15px}
+.ex-file>span:nth-child(2){min-width:0}
 .ex-file b{display:block;font-size:14px;font-weight:650;overflow-wrap:anywhere}
 .ex-file small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .ws-lbl{margin:14px 4px 4px}.ws-lbl:first-of-type{margin-top:2px}
@@ -2152,33 +2155,43 @@ async function runExport(){
   const btn=$('#exGo'); if(btn){ btn.disabled=true; btn.textContent='Exporting…'; }
   let files; try{ files=await buildExportFiles(); }catch(e){ toast('Couldn’t make the file. Try CSV.'); exportSheet(exportPick.section); return; }
   const list=files.map(x=>x.file); let where='', how='saved';
-  if(NATIVE){
-    try{ const r=await nativeCall('Files','save',{files:await Promise.all(list.map(async f=>({name:f.name,mime:f.type,data:await fileToB64(f)})))});
+  if(NATIVE&&hasNative('Files')){
+    try{ const r=await withTimeout(nativeCall('Files','save',{files:await Promise.all(list.map(async f=>({name:f.name,mime:f.type,data:await fileToB64(f)})))}),20000);
       where=r&&r.where||''; how='native'; if(r&&Array.isArray(r.names)) files.forEach((x,i)=>{ if(r.names[i]) x.saved=r.names[i]; }); }
-    catch(e){ // an app build without the Files plugin: hand the file to the share sheet
-      if(canShareFiles(list)){ try{ await navigator.share({files:list}); how='shared'; }catch(err){ if(err&&err.name==='AbortError'){ exportSheet(exportPick.section); return; } how='failed'; } }
-      else how='failed'; }
+    catch(e){ how='link'; }
+  } else if(NATIVE){
+    // App builds before the Files plugin: the share menu (Save to Files, WhatsApp, Mail…), else a download link for Safari.
+    how='link';
+    if(canShareFiles(list)){ try{ await navigator.share({files:list}); how='shared'; }catch(err){ if(err&&err.name==='AbortError'){ exportSheet(exportPick.section); return; } } }
   } else {
     list.forEach((f,i)=>setTimeout(()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click();
       setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); },i*450));
     where=/iPhone|iPad|iPod/.test(navigator.userAgent)?'the Files app → Downloads':/Android/.test(navigator.userAgent)?'your Downloads folder (Files app → Downloads)':'your Downloads folder';
   }
+  if(how==='link'){ try{ await uploadForDownload(files); }catch(e){ how='failed'; } }
   lastExport={files,how};
   exportDone(files,how,where); }
+// Puts the files on the server for a few minutes so Safari can download them (it saves to Files → Downloads).
+async function uploadForDownload(files){
+  const out=await withTimeout(api('POST','/exports',{files:await Promise.all(files.map(async x=>({name:x.file.name,mime:x.file.type,data:await fileToB64(x.file)})))}),30000);
+  (out.files||[]).forEach((f,i)=>{ if(files[i]) files[i].url=f.url; });
+  if(!files.every(x=>x.url)) throw new Error('upload'); }
 function exportDone(files,how,where){
   const many=files.length>1;
   const msg=how==='native'?(many?'Saved in ':'Saved in ')+esc(where||'your phone')+'.':
     how==='shared'?'Sent to the place you picked. To keep it on your phone, choose “Save to Files” in the share menu.':
-    how==='failed'?'This version of the app can’t save files. Update CRUD.chat, or export from crud.chat in a browser.':
+    how==='link'?'Tap <b>Download</b>'+(many?' on each file':'')+'. It opens in Safari, which saves it to the Files app → Downloads.':
+    how==='failed'?'Couldn’t save the file. Check your connection and try again, or export from crud.chat in a browser.':
     'Downloaded to '+esc(where)+'.';
   openSheet('<h3>'+(how==='failed'?'Couldn’t export':'Exported')+'</h3>'+
     '<div class="ex-files">'+files.map(x=>'<div class="ex-file"><span class="ic">'+svg(/xlsx$/.test(x.file.name)?'grid':'note')+'</span><span><b>'+esc(x.saved||x.file.name)+'</b><small>'+
-      x.rows+' row'+(x.rows===1?'':'s')+(x.sheets>1?' · '+x.sheets+' sheets':'')+'</small></span></div>').join('')+'</div>'+
+      x.rows+' row'+(x.rows===1?'':'s')+(x.sheets>1?' · '+x.sheets+' sheets':'')+'</small></span>'+
+      (how==='link'&&x.url?'<a class="btn primary ex-dl" href="'+esc(x.url)+'" target="_blank" rel="noopener">'+svg('download')+'Download</a>':'')+'</div>').join('')+'</div>'+
     '<div class="note" style="margin:10px 4px 14px;font-size:14px">'+msg+'</div>'+
-    '<div class="sh-btns">'+(how!=='failed'&&(NATIVE||canShareFiles(files.map(x=>x.file)))?'<button class="btn grow" id="exShare">'+svg('share')+'Share</button>':'')+'<button class="btn primary grow" id="exDone">Done</button></div>'); }
+    '<div class="sh-btns">'+(how!=='failed'&&how!=='link'&&((NATIVE&&hasNative('Files'))||canShareFiles(files.map(x=>x.file)))?'<button class="btn grow" id="exShare">'+svg('share')+'Share</button>':'')+'<button class="btn primary grow" id="exDone">Done</button></div>'); }
 async function shareExport(){
   if(!lastExport) return; const list=lastExport.files.map(x=>x.file);
-  if(NATIVE){ try{ await nativeCall('Files','share',{names:lastExport.files.map(x=>x.saved||x.file.name)}); return; }catch(e){} }
+  if(NATIVE&&hasNative('Files')&&lastExport.how==='native'){ try{ await nativeCall('Files','share',{names:lastExport.files.map(x=>x.saved||x.file.name)}); return; }catch(e){} }
   if(canShareFiles(list)){ try{ await navigator.share({files:list}); }catch(e){} } else toast('Sharing isn’t available here'); }
 function askForView(){ const t=(($('#vAsk')||{}).value||'').trim(); if(!t){ toast('Describe the view you want'); return; }
   closeSheet(); sendMessage(t); }
@@ -2220,7 +2233,12 @@ function countUp(){
 // the stores require their own billing for in-app subscriptions, so plans are managed on the web.
 const NATIVE=/CRUDchatApp/.test(navigator.userAgent), IOS_APP=/CRUDchatApp iOS/.test(navigator.userAgent), ANDROID_APP=/CRUDchatApp Android/.test(navigator.userAgent);
 // Calls a native plugin from this page (Capacitor's bridge is injected when the page runs inside the app).
-function nativeCall(plugin,method,opts){ const C=window.Capacitor; if(!NATIVE||!C||typeof C.nativePromise!=='function') return Promise.reject(new Error('Please update the CRUD.chat app.')); return C.nativePromise(plugin,method,opts||{}); }
+// Native plugins this app build has (Capacitor lists them in PluginHeaders). On iOS a call to a plugin the
+// build doesn't have is never answered, so check first: older builds lack newer plugins (e.g. Files, ShareIn).
+function hasNative(plugin){ const C=window.Capacitor; if(!NATIVE||!C||typeof C.nativePromise!=='function') return false;
+  const h=C.PluginHeaders; return !Array.isArray(h)||h.some(p=>p&&p.name===plugin); }
+function nativeCall(plugin,method,opts){ const C=window.Capacitor; if(!NATIVE||!C||typeof C.nativePromise!=='function'||!hasNative(plugin)) return Promise.reject(new Error('Please update the CRUD.chat app.')); return C.nativePromise(plugin,method,opts||{}); }
+function withTimeout(p,ms){ return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]); }
 function buzz(ms){ try{ if(NATIVE&&window.Capacitor&&window.Capacitor.nativePromise){ nativeCall('Haptics','impact',{style:ms>20?'MEDIUM':'LIGHT'}).catch(()=>{}); return; } if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
 if(NATIVE) document.documentElement.classList.add('native');
 // Android back button: close whatever is on top before leaving the app.
@@ -3044,7 +3062,7 @@ function receiveShare(files,texts){
   maybeShowShare(); }
 function maybeShowShare(){ if(!shareQueue||!state.user||!state.current||!$('#auth').hidden) return; shareSheet(); }
 async function pullNativeShare(){
-  if(!NATIVE||sharePulling) return; sharePulling=true;
+  if(!NATIVE||sharePulling||!hasNative('ShareIn')) return; sharePulling=true;
   try{ const r=await nativeCall('ShareIn','take',{}); const items=(r&&r.items)||[];
     const files=items.filter(i=>i.data!=null).map(i=>b64ToFile(i.data,i.type,i.name)), texts=items.filter(i=>i.text).map(i=>i.text);
     const big=items.filter(i=>i.tooLarge).map(i=>i.name);

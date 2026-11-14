@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { streamSSE } from "hono/streaming";
@@ -77,6 +78,7 @@ api.post("/auth/logout", async (c) => {
 
 api.use("/me", requireUser);
 api.use("/feedback", requireUser);
+api.use("/exports", requireUser);
 api.use("/bootstrap", requireUser);
 api.use("/workspaces", requireUser);
 api.use("/workspaces/*", requireUser);
@@ -267,6 +269,45 @@ api.post("/feedback", async (c) => {
   if (workspaceId && !(await getMembership(user.id, workspaceId).catch(() => null))) workspaceId = null;
   await saveFeedback({ userId: user.id, workspaceId, text, page: str(b.page, 120), userAgent: c.req.header("user-agent") || "" });
   return c.json({ ok: true });
+});
+
+// ----- export downloads -----
+// App builds that can't save files themselves upload the export here, and the page opens /api/dl/<token>/<name>
+// in Safari, which downloads it to Files → Downloads. Links are random, last 30 minutes and live in memory only.
+const DL_TTL = 30 * 60_000, DL_MAX_BYTES = 20 * 1024 * 1024;
+const downloads = new Map<string, { name: string; mime: string; data: Buffer; exp: number }>();
+const DL_TYPES = new Set(["text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]);
+function sweepDownloads() { const now = Date.now(); for (const [k, v] of downloads) if (v.exp < now) downloads.delete(k); }
+
+api.post("/exports", bigBody, async (c) => {
+  sweepDownloads();
+  const b = await body(c);
+  const files = (Array.isArray(b.files) ? b.files : []).slice(0, 10);
+  const out: { name: string; url: string }[] = [];
+  let total = 0;
+  for (const f of files) {
+    const name = str(f?.name, 120).replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").trim() || "Export.csv";
+    const mime = DL_TYPES.has(f?.mime) ? f.mime : name.endsWith(".xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv";
+    const data = Buffer.from(typeof f?.data === "string" ? f.data : "", "base64");
+    total += data.length;
+    if (!data.length || total > DL_MAX_BYTES) return c.json({ error: "That export is too large. Try fewer views." }, 413);
+    const token = crypto.randomBytes(18).toString("base64url");
+    downloads.set(token, { name, mime, data, exp: Date.now() + DL_TTL });
+    out.push({ name, url: `/api/dl/${token}/${encodeURIComponent(name)}` });
+  }
+  if (!out.length) return c.json({ error: "Nothing to export." }, 400);
+  return c.json({ files: out });
+});
+
+api.get("/dl/:token/:name?", (c) => {
+  const d = downloads.get(c.req.param("token"));
+  if (!d || d.exp < Date.now()) return c.text("This download link has expired. Export again from CRUD.chat.", 404);
+  const ascii = d.name.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "'");
+  return c.body(new Uint8Array(d.data), 200, {
+    "content-type": d.mime + (d.mime === "text/csv" ? "; charset=utf-8" : ""),
+    "content-disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(d.name)}`,
+    "cache-control": "private, no-store",
+  });
 });
 
 // ----- messages: the core flow -----
