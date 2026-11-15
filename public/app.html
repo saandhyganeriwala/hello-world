@@ -1713,7 +1713,9 @@ function storePlanCard(b,pro,st,h){
     h+='<button class="auth-btn" id="storeBuy" style="width:100%"'+(storeProductTried&&!sp?' disabled':'')+'>'+(sp?'Upgrade this workspace · '+esc(sp.price)+' / month':storeProductTried?'Not available right now':'Upgrade this workspace')+'</button>'+
       '<div class="note" style="text-align:center">'+(b.actionsLeft>0?'Your '+b.actionsLeft+' unused free actions move into your first month. ':'')+
       'Payment is charged to your '+(IOS_APP?'Apple ID':'Google Play account')+'. The subscription renews every month unless cancelled at least 24 hours before the end of the current period; manage or cancel it in your '+(IOS_APP?'Apple ID':'Google Play')+' settings. '+
-      '<a href="https://crud.chat/terms" target="_blank" rel="noopener">Terms of Use</a> · <a href="https://crud.chat/privacy" target="_blank" rel="noopener">Privacy Policy</a></div>'+
+      // iPhone/iPad: Apple's standard licence agreement is the Terms of Use (EULA), as the App Store listing says.
+      (IOS_APP?'<a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener">Terms of Use (EULA)</a> · ':'<a href="https://crud.chat/terms" target="_blank" rel="noopener">Terms of Use</a> · ')+
+      '<a href="https://crud.chat/privacy" target="_blank" rel="noopener">Privacy Policy</a></div>'+
       '<button class="btn" id="storeRestore" style="width:100%;justify-content:center;margin-top:8px">Restore purchases</button>';
   }
   h+='</div><div class="note">An action is one thing CRUD works out for you — recording a message, answering a question, reading a screenshot or changing a view. Viewing, editing and searching are always free.</div>';

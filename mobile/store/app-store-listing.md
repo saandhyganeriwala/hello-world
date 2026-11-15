@@ -42,7 +42,7 @@ PLANS
 
 Payment is charged to your Apple ID at confirmation of purchase. The subscription renews automatically each month unless cancelled at least 24 hours before the end of the current period. Your account is charged for renewal within 24 hours before the end of the current period. Manage or cancel it in your Apple ID account settings.
 
-Terms of Use: https://crud.chat/terms
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Privacy Policy: https://crud.chat/privacy
 
 **Keywords (100):**
