@@ -5,7 +5,10 @@ const D = __dirname, OUT = __dirname + '/';
 const img = n => 'data:image/png;base64,' + fs.readFileSync(D + '/ui-captures/' + n + '.png').toString('base64');
 const inner = fs.readFileSync(D + '/ui-captures/ele-inner.svg', 'utf8');
 const FONTS = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">';
-const SIZES = { iphone: [1206, 2622], duo: [2007, 2853], ipad: [2064, 2752] };
+const SIZES = { iphone: [1206, 2622], duo: [2007, 2853], ipad: [2064, 2752],
+  // Google Play: phone 9:16, 7" and 10" tablets (the long side may be at most twice the short side)
+  'android-phone': [1080, 1920], 'android-tablet-7': [1200, 1920], 'android-tablet-10': [1600, 2560] };
+const ONLY = (process.env.ONLY || '').split(',').filter(Boolean); // e.g. ONLY=android-phone to render one set
 
 const arrow = (dir) => `<div class="arrow ${dir}"><svg viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${dir === 'down' ? '<path d="M12 5v14M6 13l6 6 6-6"/>' : '<path d="M5 12h14M13 6l6 6-6 6"/>'}</svg></div>`;
 const tag = (t) => `<div class="tag">${t}</div>`;
@@ -80,6 +83,7 @@ function page(W, H, s) {
 (async () => {
   const b = await chromium.launch();
   for (const [dev, [W, H]] of Object.entries(SIZES)) {
+    if (ONLY.length && !ONLY.includes(dev)) continue;
     fs.mkdirSync(OUT + dev, { recursive: true });
     for (const s of SHOTS) {
       const p = await b.newPage({ viewport: { width: W, height: H } });
