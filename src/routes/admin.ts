@@ -2,11 +2,14 @@
 //   POST /api/t                → records a page visit (public, no cookies; bots ignored)
 //   GET  /api/admin/stats      → dashboard numbers, for emails listed in ADMIN_EMAILS
 //   GET  /api/admin/feedback   → feedback people sent from the app (PATCH /api/admin/feedback/:id {status})
+//   POST /api/admin/lab        → run the model lab on chosen Claude models; GET /api/lab/:id → its report (shareable link)
 import { Hono, type MiddlewareHandler } from "hono";
 import { env } from "../env.js";
 import { requireUser, type AppEnv } from "../auth/session.js";
 import { adminStats, trackVisit, usageLookup } from "../domain/analytics.js";
 import { listFeedback, setFeedbackStatus } from "../domain/feedback.js";
+import { LAB_MODELS, labReport, startLab } from "../domain/modelLab.js";
+import { aiEnabled } from "../ai/claude.js";
 
 export const admin = new Hono<AppEnv>();
 
@@ -43,3 +46,17 @@ admin.patch("/admin/feedback/:id", async (c) => {
   return (await setFeedbackStatus(c.req.param("id"), b.status)) ? c.json({ ok: true }) : c.json({ error: "Not found" }, 404);
 });
 admin.get("/admin/usage", async (c) => c.json(await usageLookup(String(c.req.query("who") || "").slice(0, 120))));
+admin.post("/admin/lab", async (c) => {
+  if (!aiEnabled()) return c.json({ error: "ANTHROPIC_API_KEY isn't set on the server." }, 503);
+  const b: any = await c.req.json().catch(() => ({}));
+  const models = (Array.isArray(b.models) ? b.models : []).filter((m: unknown) => typeof m === "string" && LAB_MODELS.includes(m));
+  if (!models.length) return c.json({ error: "Pick at least one model." }, 400);
+  const runs = Math.max(1, Math.min(3, Number(b.runs) || 1));
+  const lab = startLab(models, runs);
+  return c.json({ id: lab.id, url: `/api/lab/${lab.id}`, total: lab.total });
+});
+// Anyone with the link can read a lab report: the id is long and random, and reports hold only test data.
+admin.get("/lab/:id", (c) => {
+  const r = labReport(c.req.param("id"));
+  return r ? c.json(r) : c.json({ error: "No such report (they're kept until the next deploy)." }, 404);
+});

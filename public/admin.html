@@ -237,6 +237,37 @@ async function runLookup(){
 main.addEventListener('click',e=>{ if(e.target.closest('#lkGo')) runLookup(); });
 main.addEventListener('keydown',e=>{ if(e.target.id==='lkIn'&&e.key==='Enter') runLookup(); });
 
+
+/* ---- model lab: realistic CRUD.chat tasks on a chosen Claude model, with a shareable report ---- */
+let labId=null, labTimer=null, labData=null;
+const LABM=[['claude-haiku-5-5','Claude Haiku 5.5',true],['claude-sonnet-5-5','Claude Sonnet 5.5 (used today)',true],['claude-opus-5-5','Claude Opus 5.5',false]];
+function labCard(){ return '<h2 id="lab">Model lab</h2><div class="card"><p class="hint">Runs 15 realistic tasks (typed and Hinglish messages, updates, questions, view changes, a screenshot, a PDF invoice, a chat export, an import and a custom view) through the app’s real AI code, checks every answer, and measures speed and cost. Test data only. Sonnet costs about ₹2–3 per task; Haiku a few paise.</p>'+
+  '<div class="lk" style="align-items:center">'+LABM.map(([id,l,on])=>'<label class="note" style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" class="labm" value="'+id+'"'+(on?' checked':'')+'>'+esc(l)+'</label>').join('')+
+  '<label class="note" style="margin:0">Runs <select id="labRuns"><option>1</option><option selected>2</option><option>3</option></select></label><button id="labGo">Run lab</button></div><div id="labOut"></div></div>'; }
+function labRender(){
+  const el=$('#labOut'); if(!el) return; const d=labData; if(!d){ el.innerHTML=''; return; }
+  const link=location.origin+'/api/lab/'+d.id;
+  let h='<p class="note" style="margin-top:12px">'+(d.status==='running'?'Running… '+d.done+' of '+d.total+' tasks':'Finished · '+d.total+' tasks')+' · <a href="'+esc(link)+'" target="_blank">report link</a> <button class="fb-act" id="labCopy" style="margin-left:6px">Copy link</button></p>';
+  if(d.summary&&d.summary.length) h+=table([{t:'Model'},{t:'Tasks fully right',n:1},{t:'Checks passed',n:1},{t:'Avg time',n:1},{t:'Avg cost / task',n:1},{t:'Total cost',n:1},{t:'Errors',n:1}],
+    d.summary.map(m=>[esc(m.model),m.casesFullyRight+' / '+m.cases,m.checksPassed+' / '+m.checks,(m.avgMs/1000).toFixed(1)+' s','₹'+m.avgInr,inr(m.totalInr),fmt(m.errors)]));
+  if(d.rows&&d.rows.length) h+='<details style="margin-top:10px"><summary class="note" style="cursor:pointer">Every task</summary>'+
+    table([{t:'Task'},{t:'Model'},{t:'Run',n:1},{t:'Right',n:1},{t:'Missed'},{t:'Time',n:1},{t:'Cost',n:1}],
+      d.rows.map(r=>[esc(r.title),esc(r.model.replace('claude-','')),r.run,r.passed+'/'+r.total,'<span style="white-space:normal">'+esc((r.error?r.error+'. ':'')+r.checks.filter(c=>!c.pass).map(c=>c.name).join(', '))+'</span>',(r.ms/1000).toFixed(1)+'s','₹'+r.inr]))+'</details>';
+  el.innerHTML=h; }
+async function labPoll(){ if(!labId) return; try{ const r=await fetch('/api/lab/'+labId); if(r.ok){ labData=await r.json(); labRender(); if(labData.status!=='running'){ clearInterval(labTimer); labTimer=null; } } }catch(e){} }
+async function labStart(){
+  const models=[...document.querySelectorAll('.labm:checked')].map(x=>x.value); if(!models.length) return;
+  const b=$('#labGo'); b.disabled=true;
+  try{ const r=await fetch('/api/admin/lab',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({models,runs:Number($('#labRuns').value)})});
+    const j=await r.json(); if(!r.ok) throw new Error(j.error||'Couldn’t start'); labId=j.id; try{ localStorage.setItem('crud.admin.lab',labId); }catch(e){}
+    labData={id:labId,status:'running',done:0,total:j.total}; labRender(); clearInterval(labTimer); labTimer=setInterval(labPoll,4000); }
+  catch(e){ $('#labOut').innerHTML='<p class="note">'+esc(e.message)+'</p>'; }
+  b.disabled=false; }
+main.addEventListener('click',e=>{
+  if(e.target.closest('#labGo')) labStart();
+  if(e.target.closest('#labCopy')){ const t=location.origin+'/api/lab/'+labId; (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{ e.target.textContent='Copied'; }).catch(()=>prompt('Copy this link',t)); } });
+try{ labId=localStorage.getItem('crud.admin.lab'); }catch(e){}
+
 function render(){
   const d=data, rangeTxt=days?'last '+days+' days':'all time', t=d.traffic, p=d.people, a=d.actions, w=d.workspaces, m=d.money;
   const sum=k=>d.series.reduce((s,x)=>s+x[k],0);
@@ -252,6 +283,7 @@ function render(){
     kpi('Monthly recurring',inr(m.mrrInr),'from active subscriptions')+
     kpi('Revenue',inr(m.revenueInr),fmt(m.payments)+' payments · '+inr(m.revenueAllInr)+' all time')+'</div>';
   h+='<div id="fbBox"></div>';
+  h+=labCard();
   h+='<h2 id="usage">Look up usage</h2><div class="card"><p class="hint">See what used a person’s AI allowance: their workspaces, cost by kind of request this period, and the latest AI calls.</p>'+
     '<div class="lk"><input id="lkIn" placeholder="Email or phone" autocomplete="off" value="'+esc(lkLast)+'"><button id="lkGo">Look up</button></div><div id="lkOut"></div></div>';
 
@@ -286,7 +318,7 @@ function render(){
   h+='<h2>Latest signups</h2><div class="card">'+table([{t:'Person'},{t:'Name'},{t:'Workspaces',n:1},{t:'Free actions used',n:1},{t:'Signed up',n:1}],
     d.recentSignups.map(r=>[esc(r.who),esc(r.name),fmt(r.workspaces),fmt(r.freeUsed),dWhen(r.createdAt)]))+'</div>';
   h+='<p class="note">Visitors are counted without cookies: a one-way hash of each visitor’s IP address and browser, with bots left out. Visits before this dashboard went live aren’t counted.</p>';
-  main.innerHTML=h; drawCharts(); renderFeedback(); if(lkLast) runLookup();
+  main.innerHTML=h; drawCharts(); renderFeedback(); if(lkLast) runLookup(); if(labId){ labRender(); labPoll(); if(!labTimer) labTimer=setInterval(labPoll,4000); }
   $('#updated').textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
 }
 

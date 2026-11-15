@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { toJSONSchema, type z } from "zod/v4";
@@ -8,9 +9,15 @@ import { CustomViewOut, ImportPlan, Understanding, type CustomViewOutT, type Imp
 const client = env.anthropicKey ? new Anthropic({ apiKey: env.anthropicKey }) : null;
 export const aiEnabled = () => client !== null;
 
-// Server-side refusal fallback (beta). If the API ever rejects the parameter,
-// we drop it for the rest of the process instead of failing every request.
-let useFallbacks = env.claudeFallbacks;
+// Which model a call uses: CLAUDE_MODEL, unless the code runs inside modelScope.run(model, …) — the admin
+// model lab uses that to try another model without touching anyone else's requests.
+export const modelScope = new AsyncLocalStorage<string>();
+const currentModel = () => modelScope.getStore() || env.claudeModel;
+
+// Server-side refusal fallback (beta). If the API ever rejects the parameter for a model,
+// we drop it for that model for the rest of the process instead of failing every request.
+const noFallbacks = new Set<string>();
+const useFallbacks = (model: string) => env.claudeFallbacks && !noFallbacks.has(model);
 
 export class AiUnavailable extends Error {}
 
@@ -25,7 +32,7 @@ export type OnUsage = (u: AiUsage) => unknown;
 // through a working day keep hitting the cache instead of re-writing it every 5 minutes.
 // Strict structured outputs first. If the API ever rejects the schema (grammar too large / too complex),
 // switch to plain JSON for the rest of the process and validate it here, instead of failing every message.
-let useStrict = true;
+const noStrict = new Set<string>(); // models whose API rejected our schema
 const SCHEMA_ERR = /grammar|schema|too complex|compil/i;
 
 function firstJson(text: string): unknown {
@@ -40,7 +47,8 @@ async function structured<S extends z.ZodType>(
   opts: { normalize?: (raw: any) => unknown; onUsage?: OnUsage } = {},
 ): Promise<z.infer<S> | null> {
   if (!client) throw new AiUnavailable("ANTHROPIC_API_KEY is not set");
-  const strict = useStrict;
+  const model = currentModel();
+  const strict = !noStrict.has(model);
   const sys: any[] = [{ type: "text", text: system, cache_control: { type: "ephemeral", ttl: "1h" } }];
   if (!strict) {
     sys[0] = { type: "text", text: system };
@@ -49,34 +57,34 @@ async function structured<S extends z.ZodType>(
       JSON.stringify(toJSONSchema(schema)) });
   }
   const params: any = {
-    model: env.claudeModel,
+    model,
     max_tokens: 16000,
     system: sys,
     messages: [{ role: "user", content }],
     output_config: strict ? { effort, format: betaZodOutputFormat(schema) } : { effort },
   };
-  if (useFallbacks) { params.betas = ["server-side-fallback-2026-07-01"]; params.fallbacks = "default"; }
+  if (useFallbacks(model)) { params.betas = ["server-side-fallback-2026-07-01"]; params.fallbacks = "default"; }
 
   const started = Date.now();
   let res: any;
   try {
     res = strict ? await client.beta.messages.parse(params) : await client.beta.messages.create(params);
   } catch (e) {
-    if (useFallbacks && e instanceof Anthropic.BadRequestError && /fallback/i.test(e.message)) {
-      console.warn("[ai] server-side fallback not accepted; continuing without it");
-      useFallbacks = false;
+    if (useFallbacks(model) && e instanceof Anthropic.BadRequestError && /fallback/i.test(e.message)) {
+      console.warn(`[ai] server-side fallback not accepted for ${model}; continuing without it`);
+      noFallbacks.add(model);
       return structured(schema, system, content, effort, label, opts);
     }
     if (strict && e instanceof Anthropic.BadRequestError && SCHEMA_ERR.test(e.message)) {
-      console.warn("[ai] structured output schema rejected; switching to validated JSON:", e.message);
-      useStrict = false;
+      console.warn(`[ai] structured output schema rejected for ${model}; switching to validated JSON:`, e.message);
+      noStrict.add(model);
       return structured(schema, system, content, effort, label, opts);
     }
     throw e;
   }
   const u = res.usage as any;
   const usage: AiUsage = {
-    label, model: res.model || env.claudeModel,
+    label, model: res.model || model,
     input: u?.input_tokens ?? 0, output: u?.output_tokens ?? 0,
     cacheRead: u?.cache_read_input_tokens ?? 0, cacheWrite: u?.cache_creation_input_tokens ?? 0,
   };
