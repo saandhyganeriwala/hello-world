@@ -9,6 +9,10 @@ import { requireUser, type AppEnv } from "../auth/session.js";
 import { adminStats, trackVisit, usageLookup } from "../domain/analytics.js";
 import { listFeedback, setFeedbackStatus } from "../domain/feedback.js";
 import { LAB_MODELS, labReport, startLab } from "../domain/modelLab.js";
+import { resetAllowance } from "../domain/billing.js";
+import { getDb } from "../db/client.js";
+import { users } from "../db/schema.js";
+import { eq, sql } from "drizzle-orm";
 import { aiEnabled } from "../ai/claude.js";
 
 export const admin = new Hono<AppEnv>();
@@ -59,4 +63,13 @@ admin.post("/admin/lab", async (c) => {
 admin.get("/lab/:id", (c) => {
   const r = labReport(c.req.param("id"));
   return r ? c.json(r) : c.json({ error: "No such report (they're kept until the next deploy)." }, 404);
+});
+// Give a person a fresh AI allowance (free actions + the current period of each of their workspaces).
+admin.post("/admin/usage/reset", async (c) => {
+  const b: any = await c.req.json().catch(() => ({}));
+  const who = String(b.who || "").trim().toLowerCase();
+  if (!who) return c.json({ error: "Who?" }, 400);
+  const [u] = await getDb().select({ id: users.id }).from(users).where(sql`lower(${users.email}) = ${who} or ${users.phone} = ${who}`).limit(1);
+  if (!u) return c.json({ error: "No one found with exactly that email or phone." }, 404);
+  return c.json({ ok: true, ...(await resetAllowance(u.id)) });
 });

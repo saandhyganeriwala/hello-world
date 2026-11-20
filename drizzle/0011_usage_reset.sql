@@ -1,0 +1,1 @@
+ALTER TABLE "workspaces" ADD COLUMN "usage_reset_at" timestamp with time zone;

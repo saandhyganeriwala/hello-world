@@ -83,7 +83,7 @@ export type Billing = {
 export async function billingStatus(workspaceId: string): Promise<Billing> {
   const db = getDb();
   const [w] = await db.select({ plan: workspaces.plan, planUntil: workspaces.planUntil, periodStart: workspaces.periodStart,
-    renewsAt: workspaces.renewsAt, subId: workspaces.subscriptionId,
+    renewsAt: workspaces.renewsAt, subId: workspaces.subscriptionId, usageResetAt: workspaces.usageResetAt,
     bonus: workspaces.bonusInr, owner: workspaces.createdBy }).from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
   const now = Date.now();
   const pro = w?.plan === "pro" && !!w.planUntil && w.planUntil.getTime() > now;
@@ -125,6 +125,7 @@ export async function billingStatus(workspaceId: string): Promise<Billing> {
     since = new Date(start + k * win); periodEnds = Math.min(start + (k + 1) * win, w!.planUntil!.getTime());
     bonusInr = k === 0 ? (w!.bonus ?? 0) : 0;
   }
+  if (w!.usageResetAt && w!.usageResetAt > since) since = w!.usageResetAt; // an admin reset the allowance
   const [{ used }] = await db.select({ used: sql<number>`coalesce(sum(${aiUsage.costInr}), 0)::float8` }).from(aiUsage)
     .where(and(eq(aiUsage.workspaceId, workspaceId), gte(aiUsage.createdAt, since)));
   const budget = env.proMonthlyAiInr + bonusInr, leftInr = Math.max(0, budget - used);
@@ -239,3 +240,14 @@ export async function setSubscriptionStatus(subscriptionId: string, status: stri
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Admin: give this person a fresh allowance — their free actions, and the current period of every workspace
+ *  they're in. Nothing is deleted: usage history stays for analytics, it just stops counting. */
+export async function resetAllowance(userId: string) {
+  const db = getDb(), now = new Date();
+  await db.update(users).set({ freeActionsUsed: 0, freeSpentInr: 0 }).where(eq(users.id, userId));
+  const ws = await db.select({ id: members.workspaceId }).from(members).where(eq(members.userId, userId));
+  if (ws.length) await db.update(workspaces).set({ usageResetAt: now }).where(inArray(workspaces.id, ws.map((x) => x.id)));
+  console.log(JSON.stringify({ admin: "reset-allowance", user: userId, workspaces: ws.length }));
+  return { workspaces: ws.length, at: now.toISOString() };
+}

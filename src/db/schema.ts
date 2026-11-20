@@ -53,6 +53,7 @@ export const workspaces = pgTable("workspaces", {
   planUntil: ts("plan_until"),
   periodStart: ts("period_start"),
   renewsAt: ts("renews_at"),
+  usageResetAt: ts("usage_reset_at"),             // an admin reset the allowance: usage before this doesn't count
   subscriptionId: text("subscription_id"),
   // Unused free credit carried into the first Pro period when upgrading early.
   bonusInr: doublePrecision("bonus_inr").notNull().default(0),

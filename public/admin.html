@@ -206,7 +206,8 @@ function renderLookup(r){
   const el=$('#lkOut'); if(!el) return;
   if(!r.person){ el.innerHTML='<p class="note">No one found with that email or phone.</p>'; return; }
   const p=r.person, models=r.models||[];
-  let h='<p class="note" style="margin-top:12px"><b>'+esc(p.name||'No name')+'</b> · '+esc(p.contact)+' · joined '+dWhen(p.since)+' · free actions used '+fmt(p.freeActionsUsed)+'</p>';
+  let h='<p class="note" style="margin-top:12px"><b>'+esc(p.name||'No name')+'</b> · '+esc(p.contact)+' · joined '+dWhen(p.since)+' · free actions used '+fmt(p.freeActionsUsed)+
+    ' <button class="fb-act" id="lkReset" data-who="'+esc(p.contact)+'" style="margin-left:8px">Reset allowance</button></p>';
   if(r.allTime&&r.allTime.byLabel.length){
     h+='<div class="lk-ws"><h4>Everything this person has done, all time</h4><p class="note" style="margin:0 0 6px">Every AI call they made, in any workspace — on Claude, and what the same calls would cost on GPT models.</p>'+
       cmpTable(r.allTime.compare)+'<h3 style="margin:14px 0 6px;font-size:13.5px">By kind of request</h3>'+kindTable(r.allTime.byLabel,models)+'</div>'; }
@@ -234,7 +235,15 @@ async function runLookup(){
   const v=($('#lkIn')||{}).value||''; if(!v.trim()) return; lkLast=v.trim(); const el=$('#lkOut'); el.innerHTML='<p class="note">Looking up…</p>';
   try{ const r=await fetch('/api/admin/usage?who='+encodeURIComponent(v.trim()),{credentials:'same-origin'}); if(!r.ok) throw new Error(); renderLookup(await r.json()); }
   catch(e){ el.innerHTML='<p class="note">Couldn’t look that up.</p>'; } }
-main.addEventListener('click',e=>{ if(e.target.closest('#lkGo')) runLookup(); });
+main.addEventListener('click',e=>{ if(e.target.closest('#lkGo')) runLookup();
+  const rb=e.target.closest('#lkReset'); if(rb) resetUsage(rb); });
+async function resetUsage(btn){
+  const who=btn.dataset.who;
+  if(!confirm('Give '+who+' a fresh AI allowance?\n\nTheir free actions go back to zero, and every workspace they are in starts its current allowance again. Usage history is kept.')) return;
+  btn.disabled=true; btn.textContent='Resetting…';
+  try{ const r=await fetch('/api/admin/usage/reset',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({who})});
+    const j=await r.json(); if(!r.ok) throw new Error(j.error||'Failed'); runLookup(); }
+  catch(err){ btn.disabled=false; btn.textContent='Reset allowance'; alert(err.message); } }
 main.addEventListener('keydown',e=>{ if(e.target.id==='lkIn'&&e.key==='Enter') runLookup(); });
 
 
