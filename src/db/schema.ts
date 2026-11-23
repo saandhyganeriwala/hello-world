@@ -18,6 +18,9 @@ export const users = pgTable("users", {
   // Free AI credit is per person (spent across all the free workspaces they own), not per workspace.
   freeSpentInr: doublePrecision("free_spent_inr").notNull().default(0),   // cost, for analytics
   freeActionsUsed: integer("free_actions_used").notNull().default(0),     // what the free limit counts
+  // When the person allowed their messages, voice notes, screenshots and files to be sent to the AI providers
+  // (Anthropic; OpenAI or Sarvam for voice). Null = not allowed: nothing of theirs is sent to any AI service.
+  aiConsentAt: ts("ai_consent_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 

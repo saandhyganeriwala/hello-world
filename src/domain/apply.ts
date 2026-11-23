@@ -7,7 +7,9 @@ import type { Snapshot } from "../ai/claude.js";
 import { cleanKey, esc, inferKind, normKind, recTitle, resolveColor, sectionIcon } from "./helpers.js";
 import { removeView, sanitizeView, upsertView } from "./views.js";
 
-export type Ctx = { workspaceId: string; userId: string; authorName: string; contextRecordId?: string | null; messageText?: string };
+export type Ctx = { workspaceId: string; userId: string; authorName: string; contextRecordId?: string | null; messageText?: string;
+  /** The sender allowed AI processing (Menu → AI & privacy). False: nothing of theirs is sent to an AI service. */
+  aiAllowed?: boolean };
 
 // Operations come from Claude ({key,value}[] fields) or the local fallback parser (plain object).
 export type LooseOp = {

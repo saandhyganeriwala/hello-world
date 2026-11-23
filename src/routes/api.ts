@@ -35,6 +35,7 @@ const bigBody = bodyLimit({ maxSize: 25 * 1024 * 1024, onError: (c) => c.json({ 
 api.get("/health", (c) => c.json({ ok: true }));
 api.get("/config", (c) => c.json({
   otpDevMode: env.otpDevMode, aiEnabled: aiEnabled(), loginMethod: env.loginMethod, transcribe: !!transcribeProvider(),
+  aiProviders: { text: aiEnabled() ? "Anthropic (Claude)" : null, voice: transcribeProvider() === "sarvam" ? "Sarvam AI" : transcribeProvider() ? "OpenAI" : null },
   plans: { freeActions: env.freeActions, freeMembers: env.freeMembers, proPriceInr: env.proPriceInr, proPriceUsd: env.proPriceUsd, proDays: env.proDays,
     proMembers: env.proMembers, proActions: proActions(), paymentsReady: env.paymentsReady, iapProductId: env.iapProductId },
 }));
@@ -77,6 +78,7 @@ api.post("/auth/logout", async (c) => {
 // ---------- authenticated ----------
 
 api.use("/me", requireUser);
+api.use("/me/*", requireUser);
 api.use("/feedback", requireUser);
 api.use("/exports", requireUser);
 api.use("/bootstrap", requireUser);
@@ -86,6 +88,15 @@ api.use("/records/*", requireUser);
 api.use("/invites/*", requireUser);
 
 api.get("/me", (c) => c.json({ user: c.get("user") }));
+
+// Permission to send this person's messages, voice notes, screenshots and files to the AI providers.
+api.post("/me/ai-consent", async (c) => {
+  const user = c.get("user"), allow = (await body(c)).allow === true;
+  const at = allow ? new Date() : null;
+  await getDb().update(users).set({ aiConsentAt: at }).where(eq(users.id, user.id));
+  console.log(JSON.stringify({ aiConsent: allow, user: user.id }));
+  return c.json({ user: { ...user, aiConsentAt: at } });
+});
 // Delete my account (App Store / Play requirement). Body must confirm with { confirm: "DELETE" }.
 api.delete("/me", async (c) => {
   const user = c.get("user");
@@ -332,7 +343,7 @@ api.post("/workspaces/:id/messages", bigBody, async (c) => {
   if (!text && !images.length && !docs.length) return c.json({ error: "Type something or attach a screenshot." }, 400);
 
   const out = await processMessage(
-    { workspaceId: id, userId: user.id, authorName: user.name || "Someone" },
+    { workspaceId: id, userId: user.id, authorName: user.name || "Someone", aiAllowed: !!user.aiConsentAt },
     {
       text, images, docs, thumbs, contextRecordId: str(b.contextRecordId, 64) || null, clientId: c.get("clientId"),
       viewing: b.viewing && typeof b.viewing.section === "string"
@@ -367,6 +378,7 @@ api.post("/workspaces/:id/transcribe", bodyLimit({ maxSize: 12 * 1024 * 1024, on
   if (!(await access(c))) return notFound(c);
   const id = c.req.param("id"), user = c.get("user");
   if (!transcribeProvider()) return c.json({ error: "Voice transcription isn't set up." }, 503);
+  if (!user.aiConsentAt) return c.json({ error: "Voice notes are written out by an AI service. Allow AI in Menu → AI & privacy to use them.", consent: true }, 403);
   const bill = await billingStatus(id);
   if (!bill.ok) return c.json({ error: bill.plan === "pro" ? "This month's AI allowance is used up." : "Your free AI actions are used up.", limit: true }, 402);
   const audio = Buffer.from(await c.req.arrayBuffer());
@@ -416,7 +428,7 @@ api.post("/workspaces/:id/import", bigBody, async (c) => {
   changed(c, id);
 
   let plan = null;
-  if (aiEnabled() && (await billingStatus(id)).ok) {
+  if (aiEnabled() && user.aiConsentAt && (await billingStatus(id)).ok) { // only with the importer's permission
     try {
       const existing = await db.select({ name: sections.name, kind: sections.kind }).from(sections).where(eq(sections.workspaceId, id));
       plan = await planImport({

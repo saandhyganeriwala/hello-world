@@ -621,6 +621,10 @@ body.busy #topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px
 .ex-file>span:nth-child(2){min-width:0}
 .ex-file b{display:block;font-size:14px;font-weight:650;overflow-wrap:anywhere}
 .ex-file small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.ai-c{font-size:14.5px;line-height:1.5;color:var(--fg-2)}
+.ai-c p{margin:0 0 10px}.ai-c ul{margin:0 0 10px;padding-left:18px}.ai-c li{margin:3px 0}
+.ai-c .ai-h{margin:12px 0 4px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ai-c a{color:var(--fg)}
 .ws-lbl{margin:14px 4px 4px}.ws-lbl:first-of-type{margin-top:2px}
 .row-item.cur{background:var(--surface-2)}
 .ws-tile.add{background:transparent;border:1.5px dashed var(--border-strong);color:var(--muted)}
@@ -2522,6 +2526,7 @@ async function sendMessage(text, images, thumbs){
   text=(text||'').trim(); const hasImg=!!(images&&images.length); // images = attached files (screenshots, PDFs, text files)
   const w=ws();
   if((!text&&!hasImg)||processing||!w.id) return;
+  if(needsAiConsent()){ aiConsentSheet(()=>sendMessage(text,images,thumbs)); return; } // ask before anything goes to AI
   const ctxId=(view.mode==='detail')?view.recordId:null;
   // Show the bubble straight away; the server's copy replaces it.
   const temp={id:'tmp'+uid(),author:w.me,authorName:activeMember().name,
@@ -2665,6 +2670,7 @@ function menuSheet(){
     '<button class="row-item" id="mTeam"><span>'+svg('people')+'</span><span>Team<span class="sub">'+n+' member'+(n>1?'s':'')+'</span></span></button>'+
     '<button class="row-item" id="mWs"><span>'+svg('swap')+'</span><span>Switch or add workspace</span></button>'+
     '<button class="row-item" id="mSearch"><span>'+svg('search')+'</span><span>Search records</span></button>'+
+    (aiAvailable()?'<button class="row-item" id="mAi"><span>'+svg('spark')+'</span><span>AI &amp; privacy<span class="sub">'+(state.user&&state.user.aiConsentAt?'AI is on':'AI is off: nothing is sent to AI services')+'</span></span></button>':'')+
     '<button class="row-item" id="mFeedback"><span>'+svg('chat')+'</span><span>Send feedback<span class="sub">Ideas, problems, anything</span></span></button>'+
     '<button class="row-item" id="mName"><span>'+svg('person')+'</span><span>'+esc(u.name||'Your name')+'<span class="sub">'+esc(u.email||u.phone||'')+'</span></span></button>'+
     '<div class="sdiv"></div>'+
@@ -2677,6 +2683,34 @@ function nameSheet(){
   const go=async()=>{ const v=inp.value.trim(); if(!v) return;
     try{ const out=await api('PATCH','/me',{name:v}); state.user=out.user; closeSheet(); await refreshState(); }catch(e){ toast(e.message); } };
   $('#myNameBtn').onclick=go; inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();go();} });
+}
+
+/* ---------------- AI permission ----------------
+   Nothing a person sends goes to an AI service until they allow it (the server enforces this too: see
+   aiAllowed in src/domain/messages.ts). Asked the first time they open the app, before their first message,
+   import or voice note, and any time from Menu → AI & privacy. */
+let aiAsked=false;
+const aiAvailable=()=>!!(state.config&&state.config.aiEnabled);
+function needsAiConsent(){ return aiAvailable()&&!!state.user&&!state.user.aiConsentAt&&!aiAsked; }
+function aiConsentSheet(after,fromMenu){
+  aiAsked=true;
+  const p=(state.config&&state.config.aiProviders)||{}, on=!!(state.user&&state.user.aiConsentAt);
+  const who=[p.text?'<li><b>'+esc(p.text)+'</b>: your messages, screenshots, photos and files, and the questions you ask</li>':'',
+    p.voice?'<li><b>'+esc(p.voice)+'</b>: your voice notes, to write them out as text</li>':''].join('');
+  openSheet('<h3>'+(on?'AI is on':'Allow AI to read what you send?')+'</h3>'+
+    '<div class="ai-c"><p>CRUD.chat uses AI services to turn what you send into records, read screenshots and files, answer your questions and change the app when you ask.</p>'+
+    '<p class="ai-h">What is sent</p><p>The messages you send, your voice notes, the screenshots, photos and files you share, the columns and sample rows of spreadsheets you import, and the records in your workspace that are needed to understand or answer them, which can include names, amounts and phone numbers you have recorded.</p>'+
+    '<p class="ai-h">Who it is sent to</p><ul>'+who+'</ul>'+
+    '<p>They use it only to answer your request, do not use it to train their AI models, and protect it to the same standard as our <a href="https://crud.chat/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>'+
+    '<p class="note" style="margin:0">'+(on?'Turn AI off and nothing of yours is sent to AI services. You can still record and edit by typing.':'If you don’t allow it, nothing of yours is sent to AI services. You can still record and edit by typing, but screenshots, voice notes and questions won’t work. You can change this any time in Menu → AI &amp; privacy.')+'</p></div>'+
+    '<div class="sh-btns">'+(on?'<button class="btn danger grow" id="aiOff">Turn AI off</button><button class="btn primary grow" id="aiKeep">Keep AI on</button>'
+      :'<button class="btn" id="aiNo">Not now</button><button class="btn primary grow" id="aiYes">Allow</button>')+'</div>');
+  const done=ok=>{ closeSheet(); if(after) after(ok); };
+  const set=async allow=>{ try{ const out=await api('POST','/me/ai-consent',{allow}); state.user=out.user; }catch(e){ toast(e.message); return false; } return true; };
+  if($('#aiYes')) $('#aiYes').onclick=async()=>{ if(await set(true)){ toast('AI is on'); done(true); } };
+  if($('#aiNo')) $('#aiNo').onclick=()=>done(false);
+  if($('#aiKeep')) $('#aiKeep').onclick=()=>done(true);
+  if($('#aiOff')) $('#aiOff').onclick=async()=>{ if(await set(false)){ toast('AI is off. Nothing of yours is sent to AI services.'); done(false); } };
 }
 
 /* ---------------- Feedback (read by admins on /admin) ---------------- */
@@ -2810,6 +2844,9 @@ async function recUpload(sess){
   if(failed) toast(failed); else if(!text.trim()) toast('I didn’t catch that — try again, a little closer to the mic');
   finishVoice(sess); }
 function startVoice(){
+  if(serverVoice()&&aiAvailable()&&!(state.user&&state.user.aiConsentAt)){
+    // Voice notes are written out by an AI service: ask first (recording itself needs a fresh tap afterwards).
+    aiConsentSheet(ok=>{ toast(ok?'AI is on. Tap the mic to record.':'Voice notes need AI. You can allow it in Menu → AI & privacy.'); }, true); return false; }
   if(serverVoice()){
     if(voice.blocked){ toast(VOICE_MSG); return false; }
     const cur=$('#input').value.trim();
@@ -3008,6 +3045,7 @@ async function workbookFromFile(file){
 async function importFiles(files){ for(const f of files){ await importOne(f); } }
 async function importOne(file){
   if(processing){ toast('One moment — still working'); return; }
+  if(needsAiConsent()){ await new Promise(res=>aiConsentSheet(res)); }
   const w=ws(); if(!w.id) return;
   const temp={id:'tmp'+uid(),author:w.me,authorName:activeMember().name,text:'Imported '+file.name,ts:Date.now(),pending:true};
   w.messages.push(temp); processing=true; updateSend(); renderChat(); renderPeek();
@@ -3351,6 +3389,7 @@ function sheetClick(e){
   if(e.target.closest('#mSearch')){ closeSheet(); openSearch(); return; }
   if(e.target.closest('#mName')){ nameSheet(); return; }
   if(exportClick(e)) return;
+  if(e.target.closest('#mAi')){ aiConsentSheet(null,true); return; }
   if(e.target.closest('#mFeedback')){ feedbackSheet(); return; }
   if(e.target.closest('#fbSend')){ sendFeedback(e.target.closest('#fbSend')); return; }
   if(e.target.closest('#mLogout')){ logout(); return; }
@@ -3534,6 +3573,7 @@ async function loadApp(){
     if(join){ if(b.current){ state.current=b.current; } showAuth('loading'); if(await lookupJoin(join,true)) return; }
     if(!b.current){ showAuth('setup'); return; }
     hideAuth(); enterWorkspace(b.current,b.state); setTimeout(storeSyncPending,1500); pullNativeShare(); pullWebShare();
+    if(needsAiConsent()) setTimeout(()=>{ if(needsAiConsent()&&$('#sheetScrim').hidden) aiConsentSheet(null); },600);
   }catch(e){ if(e.status!==401){ showAuth('start'); authError(e.message); } }
 }
 // Delete account: explain what happens, then ask the person to type DELETE.

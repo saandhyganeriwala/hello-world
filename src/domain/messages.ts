@@ -26,7 +26,7 @@ export type SendInput = {
 };
 
 export type SendResult = {
-  kind: UnderstandingT["kind"] | "fallback" | "error" | "limit";
+  kind: UnderstandingT["kind"] | "fallback" | "error" | "limit" | "consent";
   section: string | null;
   rid: string | null;
   touched: string[];
@@ -98,9 +98,10 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
 
   let ai: UnderstandingT | null = null;
   let aiFailed = false;
-  const bill = aiEnabled() ? await billingStatus(ws) : null;
+  const aiOn = aiEnabled() && ctx.aiAllowed !== false; // the sender allowed AI processing
+  const bill = aiOn ? await billingStatus(ws) : null;
   const outOfCredit = !!bill && !bill.ok;
-  if (aiEnabled() && !outOfCredit) {
+  if (aiOn && !outOfCredit) {
     try {
       ai = await understand({
         onUsage: (u) => recordUsage(ws, ctx.userId, u, undefined, { messageId: msg.id, source: usageSource(input) }),
@@ -141,6 +142,9 @@ export async function processMessage(ctx: Ctx, input: SendInput): Promise<{ resu
       if (outOfCredit && (hasImg || addressed(input.text) || looksLikeQuestion(input.text) || looksLikeCommand(input.text))) {
         result.kind = "limit";
         await botReply(ws, limitMessage(bill!));
+      } else if (!aiOn && aiEnabled() && (hasImg || addressed(input.text) || looksLikeQuestion(input.text) || looksLikeCommand(input.text))) {
+        result.kind = "consent";
+        await botReply(ws, `AI is off for you, so I haven't sent this anywhere. To let me read ${hasImg ? (docs.length ? "files" : "screenshots") : "messages"}, answer questions and change the app, allow AI in Menu → AI & privacy. Everything you type is still saved.`);
       } else if (hasImg) {
         result.kind = "error";
         await botReply(ws, aiEnabled()
