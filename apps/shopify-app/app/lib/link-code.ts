@@ -7,7 +7,8 @@ export const LINK_CODE_TTL_MS = 10 * 60 * 1000;
 
 export function generateLinkCode(): string {
   let code = "";
-  for (let i = 0; i < LINK_CODE_LENGTH; i++) code += ALPHABET[randomInt(ALPHABET.length)];
+  for (let i = 0; i < LINK_CODE_LENGTH; i++)
+    code += ALPHABET[randomInt(ALPHABET.length)];
   return code;
 }
 

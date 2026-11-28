@@ -78,7 +78,16 @@ Sonnet 5.5, about 25 steps per task. Per step: 10K cache read ($0.001) + 2K new 
 tasks would add about ₹60 per merchant, which is why it sits behind a quota and a usage charge (for example
 ₹49 per extra task). Haiku 5.5 with the browser toolset could cut this a lot. Evaluate it first.
 
-## 8.6 Levers if margins tighten
+## 8.6 Update (Nov 2026): Meta now charges for service messages
+
+Since 1 October 2026, Meta charges for non-template (service) replies beyond a **free tier of 1,000 delivered
+messages per business phone number per month**. The tier is shared across one-to-one and group chats and across
+**all merchants on Storemate's number**. Group messages count once per delivered recipient. The "WhatsApp ≈ ₹1"
+line above therefore only holds at very small scale. Budget for the INR service rate on Meta's rate card per
+outbound message (per recipient in groups), keep replies short, and consider a second number or per-merchant
+numbers (Embedded Signup) as volume grows. See docs/11-groups-plans-and-llms.md.
+
+## 8.7 Levers if margins tighten
 
 1. Fewer escalations (better typed tools, prompt tuning, effort `medium` before switching models).
 2. Batch API for every non-interactive job (summaries, drafts): 50% off.

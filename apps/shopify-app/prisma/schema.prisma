@@ -29,35 +29,55 @@ model Session {
 }
 
 model Shop {
-  id                      String          @id @default(cuid())
-  shopDomain              String          @unique
-  name                    String?
-  installedAt             DateTime        @default(now())
-  uninstalledAt           DateTime?
-  setupDismissedAt        DateTime?
-  storefrontStepSkippedAt DateTime?
-  settings                ShopSettings?
-  merchantUsers           MerchantUser[]
-  linkCodes               LinkCode[]
-  waMessages              WaMessage[]
-  auditEvents             AuditEvent[]
-  pendingActions          PendingAction[]
-  llmUsage                LlmUsage[]
+  id                       String          @id @default(cuid())
+  shopDomain               String          @unique
+  name                     String?
+  installedAt              DateTime        @default(now())
+  uninstalledAt            DateTime?
+  setupDismissedAt         DateTime?
+  storefrontStepSkippedAt  DateTime?
+  /// none | solo | group (from the active Shopify subscription, cached)
+  plan                     String          @default("none")
+  planCheckedAt            DateTime?
+  ianaTimezone             String?
+  currencyCode             String?
+  /// Online Store publication id, cached for publishing products
+  onlineStorePublicationId String?
+  /// Stable merchant preferences the assistant may reuse (brand voice, default vendor, ...)
+  memory                   Json            @default("{}")
+  settings                 ShopSettings?
+  group                    StoreGroup?
+  episodes                 Episode[]
+  mediaAssets              MediaAsset[]
+  merchantUsers            MerchantUser[]
+  linkCodes                LinkCode[]
+  waMessages               WaMessage[]
+  auditEvents              AuditEvent[]
+  pendingActions           PendingAction[]
+  llmUsage                 LlmUsage[]
 }
 
 model ShopSettings {
-  shopId                String   @id
-  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId                String    @id
+  shop                  Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   /// auto | en | hi
-  language              String   @default("auto")
+  language              String    @default("auto")
   /// standard: approve publishing, prices, shipping, discounts, storefront, deletions
   /// strict:   also approve drafts and stock changes
-  approvalMode          String   @default("standard")
-  weeklySummaryEnabled  Boolean  @default(true)
-  /// 1 = Monday ... 7 = Sunday
-  weeklySummaryDay      Int      @default(1)
-  checkoutDigestEnabled Boolean  @default(true)
-  updatedAt             DateTime @updatedAt
+  approvalMode          String    @default("standard")
+  /// off | daily | weekly (Group plan feature)
+  summaryFrequency      String    @default("weekly")
+  /// 1 = Monday ... 7 = Sunday, for weekly summaries
+  weeklySummaryDay      Int       @default(1)
+  /// Local hour (shop timezone) to send summaries and digests
+  summaryHour           Int       @default(9)
+  /// Group plan feature
+  checkoutDigestEnabled Boolean   @default(true)
+  /// dm (owner's chat) | group (the store team group, when it exists)
+  updatesDestination    String    @default("group")
+  lastSummaryAt         DateTime?
+  lastDigestAt          DateTime?
+  updatedAt             DateTime  @updatedAt
 }
 
 /// A WhatsApp number allowed to manage a shop.
@@ -67,6 +87,8 @@ model MerchantUser {
   shop          Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   /// E.164 digits without "+", as WhatsApp sends it
   waId          String
+  /// WhatsApp business-scoped user id (BSUID), when known
+  userId        String?
   displayName   String?
   /// owner | staff
   role          String    @default("owner")
@@ -99,12 +121,17 @@ model WaMessage {
   shopId      String?
   shop        Shop?    @relation(fields: [shopId], references: [id], onDelete: Cascade)
   waId        String
+  groupId     String?
+  /// Set when the assistant has taken this inbound message into a turn
+  processedAt DateTime?
   type        String
   body        String?
   payload     Json
   createdAt   DateTime @default(now())
 
   @@index([shopId, createdAt])
+  @@index([groupId, processedAt])
+  @@index([waId, processedAt])
 }
 
 /// Append-only record of every change the assistant made or attempted.
@@ -143,6 +170,12 @@ model PendingAction {
   undoOps         Json?
   /// pending | approved | rejected | expired | failed
   status          String    @default("pending")
+  /// Short code merchants type in groups ("YES 4821"), where buttons are not available
+  approvalCode    String?
+  /// Conversation the request was made in: "dm:<waId>" or "group:<groupId>"
+  conversationKey String?
+  /// member | owner: who may approve
+  minRole         String    @default("member")
   requestedByWaId String?
   decidedBy       String?
   /// whatsapp | admin
@@ -169,4 +202,89 @@ model LlmUsage {
   createdAt        DateTime @default(now())
 
   @@index([shopId, createdAt])
+}
+
+/// The store team WhatsApp group (Group plan). One per shop.
+model StoreGroup {
+  id            String             @id @default(cuid())
+  shopId        String             @unique
+  shop          Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  /// Meta group id; null until the group_create webhook arrives
+  groupId       String?            @unique
+  requestId     String?
+  subject       String
+  inviteLink    String?
+  /// creating | active | failed | deleted
+  status        String             @default("creating")
+  error         String?
+  lastInboundAt DateTime?
+  createdAt     DateTime           @default(now())
+  participants  GroupParticipant[]
+}
+
+model GroupParticipant {
+  id           String     @id @default(cuid())
+  storeGroupId String
+  storeGroup   StoreGroup @relation(fields: [storeGroupId], references: [id], onDelete: Cascade)
+  waId         String?
+  userId       String?
+  name         String?
+  joinedAt     DateTime   @default(now())
+  leftAt       DateTime?
+
+  @@index([storeGroupId])
+}
+
+/// One task-sized conversation with the assistant. Messages are stored in provider-neutral form.
+model Episode {
+  id              String   @id @default(cuid())
+  shopId          String
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  conversationKey String
+  /// open | closed
+  status          String   @default("open")
+  /// agent | escalation
+  route           String   @default("agent")
+  messages        Json     @default("[]")
+  summary         String?
+  escalations     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([shopId, conversationKey, status])
+}
+
+/// Inbound photos kept briefly for product creation (deleted after 7 days).
+model MediaAsset {
+  id              String    @id @default(cuid())
+  shopId          String
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  conversationKey String
+  waMediaId       String?
+  mimeType        String
+  caption         String?
+  data            Bytes
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([shopId, conversationKey, createdAt])
+}
+
+/// Background jobs. Jobs with the same conversationKey run one at a time, in order.
+model Job {
+  id              String    @id @default(cuid())
+  kind            String
+  conversationKey String?
+  payload         Json
+  /// queued | running | done | failed
+  status          String    @default("queued")
+  runAt           DateTime  @default(now())
+  attempts        Int       @default(0)
+  lastError       String?
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+
+  @@index([status, runAt])
+  @@index([conversationKey, status])
 }

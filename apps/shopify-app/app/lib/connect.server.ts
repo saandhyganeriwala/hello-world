@@ -7,7 +7,12 @@ export async function buildConnectInfo(shopId: string): Promise<ConnectInfo> {
   const link = await getOrCreateLinkCode(shopId);
   const links = connectLinks(link.code);
   const qrSvg = links.url
-    ? await QRCode.toString(links.url, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#000000", light: "#ffffff" } })
+    ? await QRCode.toString(links.url, {
+        type: "svg",
+        margin: 0,
+        errorCorrectionLevel: "M",
+        color: { dark: "#000000", light: "#ffffff" },
+      })
     : null;
   return {
     code: link.code,

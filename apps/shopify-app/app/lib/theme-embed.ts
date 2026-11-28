@@ -30,8 +30,11 @@ export function isEmbedEnabled(
     return false;
   }
   const current =
-    typeof data.current === "string" ? data.presets?.[data.current] : data.current;
-  const blocks = (current as { blocks?: Record<string, Block> } | undefined)?.blocks;
+    typeof data.current === "string"
+      ? data.presets?.[data.current]
+      : data.current;
+  const blocks = (current as { blocks?: Record<string, Block> } | undefined)
+    ?.blocks;
   if (!blocks || typeof blocks !== "object") return false;
 
   return Object.values(blocks).some((block) => {
@@ -44,7 +47,11 @@ export function isEmbedEnabled(
 }
 
 /** Theme editor deep link that opens the App embeds panel with our embed switched on. */
-export function activateEmbedUrl(shopDomain: string, apiKey: string, blockHandle = BANNER_EMBED_HANDLE): string {
+export function activateEmbedUrl(
+  shopDomain: string,
+  apiKey: string,
+  blockHandle = BANNER_EMBED_HANDLE,
+): string {
   return `https://${shopDomain}/admin/themes/current/editor?context=apps&activateAppId=${encodeURIComponent(
     `${apiKey}/${blockHandle}`,
   )}`;

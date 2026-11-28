@@ -35,6 +35,11 @@ api_version = "2026-10"
   topics = ["app/scopes_update"]
   uri = "/webhooks/app/scopes_update"
 
+  # Handled by: /app/routes/webhooks.app.subscriptions_update.tsx
+  [[webhooks.subscriptions]]
+  topics = ["app_subscriptions/update"]
+  uri = "/webhooks/app/subscriptions_update"
+
   # Mandatory compliance topics for public apps. Handled by: /app/routes/webhooks.compliance.tsx
   [[webhooks.subscriptions]]
   uri = "/webhooks/compliance"

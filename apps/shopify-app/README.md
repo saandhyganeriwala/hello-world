@@ -13,10 +13,24 @@ Design background: [../../docs/README.md](../../docs/README.md).
 | Approvals and undo: frozen GraphQL operations, run once | `app/lib/actions.server.ts` |
 | Theme app extension: storefront banner (app embed, no JavaScript) | `extensions/storefront-banner/` |
 | Database schema (Postgres) | `prisma/schema.prisma`, `prisma/migrations/` |
-| Screen previews with sample data (development only) | `/dev/preview/home-new`, `/home`, `/activity`, `/settings` |
+| Agent: system prompt, 22 tools with approval tiers, loop with escalation, budgets and usage logging | `app/agent/` |
+| Model providers (Claude, OpenAI), switched by environment variables | `app/agent/llm/` |
+| Shopify GraphQL client (rate-limit aware) and the Admin API 2026-10 schema used to validate every operation | `app/agent/shopify/` |
+| Product listings from photos (sharp resize, vision copy, staged uploads, variants, publish approval) | `app/agent/listing.server.ts` |
+| Background worker: per-conversation job queue in Postgres, turn processing, schedules | `app/jobs/` |
+| WhatsApp Cloud API client incl. Groups API; team group lifecycle | `app/lib/whatsapp-api.server.ts`, `app/lib/groups.server.ts` |
+| Plans (Solo / Group) and feature gating | `app/lib/plans.ts`, `app/routes/app.plan.tsx` |
+| Screen previews with sample data (development only) | `/dev/preview/home-new`, `/home`, `/home-group`, `/home-group-new`, `/activity`, `/settings`, `/settings-group`, `/plan` |
 
-The agent itself (Claude tool loop, product pipeline) is the next milestone. Inbound WhatsApp messages from
-linked numbers are stored but not answered yet.
+## How a WhatsApp message is handled
+
+1. `webhooks.whatsapp.ts` checks Meta's signature, stores the message (deduplicated) and schedules a turn for the
+   conversation (`dm:<number>` or `group:<id>`), with a short debounce so several photos become one turn.
+2. The worker (`app/jobs/worker.server.ts`, started in `entry.server.tsx`) runs one conversation at a time, in order.
+3. `turn.server.ts` handles approvals (buttons in chats, `YES 1234` in groups), UNDO and HELP without the model,
+   ignores group messages that don't mention Storemate, downloads photos, then runs the agent.
+4. `loop.server.ts` calls the model, runs tools, records cost, escalates when needed. High-impact changes become
+   pending actions; their approval prompts are sent after the reply. Approval runs the frozen operations directly.
 
 ## Merchant setup flow
 
@@ -45,14 +59,24 @@ SHOPIFY_API_KEY=dummy SHOPIFY_API_SECRET=dummy SHOPIFY_APP_URL=http://localhost:
 # open http://localhost:3456/dev/preview/home-new
 ```
 
-Without the `WHATSAPP_*` variables, outgoing WhatsApp messages are logged, not sent. In development the
-connect step has a "Simulate" button that links a test number.
+Without the `WHATSAPP_*` variables, outgoing WhatsApp messages are logged, not sent, and group creation is
+simulated. In development the connect step has a "Simulate" button that links a test number.
+
+To try the agent without a store, set `FAKE_SHOPIFY_STORE=1` (development only: an in-memory store with a few
+products, orders and checkouts) and `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`, then send signed webhooks to
+`/webhooks/whatsapp` (see `app/jobs/pipeline.integration.test.ts` for the payload shapes).
 
 ## Checks
 
 ```bash
 npm run typecheck && npm run lint && npx vitest run && npm run build
+# The pipeline test needs Postgres:
+DATABASE_URL=postgresql://... npx vitest run app/jobs
 ```
+
+The tests validate every GraphQL operation and every change the agent can propose against Shopify's Admin API
+schema (version 2026-10), test both model adapters, and run the WhatsApp → queue → agent → approval → undo
+pipeline (with a scripted model stand-in) against a real database.
 
 ## Notes for Polaris web components with React 18
 

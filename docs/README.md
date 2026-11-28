@@ -11,12 +11,13 @@ Target price: ₹499/month or less. Cost and reliability come before raw model i
 | 2 | [02-tech-stack.md](02-tech-stack.md) | Recommended stack and why |
 | 3 | [03-shopify-api-surface.md](03-shopify-api-surface.md) | GraphQL queries/mutations, scopes, rate limits |
 | 4 | [04-whatsapp-cloud-api.md](04-whatsapp-cloud-api.md) | WhatsApp Cloud API integration |
-| 5 | [05-agent-design.md](05-agent-design.md), [../agent/system-prompt.md](../agent/system-prompt.md), [../agent/tools.ts](../agent/tools.ts) | Agent loop, model routing, system prompt, tool definitions |
+| 5 | [05-agent-design.md](05-agent-design.md); code in `apps/shopify-app/app/agent/` | Agent loop, model routing, system prompt, tool definitions |
 | 6 | [06-computer-use-fallback.md](06-computer-use-fallback.md) | Fallback ladder and computer-use design |
 | 7 | [07-shopify-app-structure.md](07-shopify-app-structure.md) | OAuth, embedded app, Theme App Extension examples |
 | 8 | [08-cost-model.md](08-cost-model.md) | Unit economics at ₹499/month |
 | 9 | [09-implementation-plan.md](09-implementation-plan.md) | Milestones and the first sprint |
 | 10 | [10-risks.md](10-risks.md) | Risks, App Store review concerns, mitigations |
+| 11 | [11-groups-plans-and-llms.md](11-groups-plans-and-llms.md) | WhatsApp Groups API facts, Solo/Group plans, switching LLMs |
 
 ## How we read the brief
 

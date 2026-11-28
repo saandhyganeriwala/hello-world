@@ -5,7 +5,8 @@ import { Outlet } from "react-router";
  * Loads Polaris web components from Shopify's CDN and stubs the App Bridge `shopify` global.
  */
 export const loader = async () => {
-  if (process.env.NODE_ENV === "production") throw new Response("Not found", { status: 404 });
+  if (process.env.NODE_ENV === "production")
+    throw new Response("Not found", { status: 404 });
   return null;
 };
 
@@ -16,7 +17,9 @@ export default function PreviewLayout() {
     <>
       <script dangerouslySetInnerHTML={{ __html: STUB }} />
       <script src="https://cdn.shopify.com/shopifycloud/polaris.js" />
-      <div style={{ background: "#f1f1f1", minHeight: "100vh", paddingBlock: 16 }}>
+      <div
+        style={{ background: "#f1f1f1", minHeight: "100vh", paddingBlock: 16 }}
+      >
         <Outlet />
       </div>
     </>

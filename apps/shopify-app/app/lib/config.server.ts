@@ -15,6 +15,16 @@ export const config = {
     appSecret: process.env.META_APP_SECRET ?? "",
     verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
     graphVersion: process.env.WHATSAPP_GRAPH_VERSION ?? "v24.0",
+    /** Approved template names, used for business-initiated messages outside the 24-hour window. */
+    templates: {
+      language: process.env.WHATSAPP_TEMPLATE_LANGUAGE ?? "en",
+      /** Body params: {{1}} store name, {{2}} period label, {{3}} revenue, {{4}} orders */
+      summary: process.env.WHATSAPP_TEMPLATE_SUMMARY ?? "",
+      /** Body params: {{1}} count, {{2}} total value */
+      checkoutDigest: process.env.WHATSAPP_TEMPLATE_CHECKOUT_DIGEST ?? "",
+      /** Meta Template Library "Group invite link" template (utility) */
+      groupInvite: process.env.WHATSAPP_TEMPLATE_GROUP_INVITE ?? "",
+    },
   },
 
   /** Monthly assistant budget per shop in USD (see docs/08-cost-model.md). */

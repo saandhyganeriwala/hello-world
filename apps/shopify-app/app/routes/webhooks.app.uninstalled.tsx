@@ -18,10 +18,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (record) {
     const now = new Date();
     await db.$transaction([
-      db.shop.update({ where: { id: record.id }, data: { uninstalledAt: now, setupDismissedAt: null } }),
-      db.merchantUser.updateMany({ where: { shopId: record.id, revokedAt: null }, data: { revokedAt: now } }),
+      db.shop.update({
+        where: { id: record.id },
+        data: { uninstalledAt: now, setupDismissedAt: null },
+      }),
+      db.merchantUser.updateMany({
+        where: { shopId: record.id, revokedAt: null },
+        data: { revokedAt: now },
+      }),
       db.linkCode.deleteMany({ where: { shopId: record.id } }),
-      db.pendingAction.updateMany({ where: { shopId: record.id, status: "pending" }, data: { status: "expired" } }),
+      db.pendingAction.updateMany({
+        where: { shopId: record.id, status: "pending" },
+        data: { status: "expired" },
+      }),
     ]);
   }
 

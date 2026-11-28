@@ -11,6 +11,10 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import db from "../db.server";
 import { authenticate } from "../shopify.server";
 import { ConnectWhatsApp } from "../components/ConnectWhatsApp";
+import { TeamGroup } from "../components/TeamGroup";
+import { buildGroupInfo, createStoreGroup } from "../lib/groups.server";
+import { hasFeature, llmBudgetUsd, planInfo } from "../lib/plans";
+import { currentPlan } from "../lib/plans.server";
 import { config } from "../lib/config.server";
 import { buildConnectInfo } from "../lib/connect.server";
 import { maskPhone } from "../lib/phone";
@@ -33,11 +37,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = await ensureShop(session.shop, admin.graphql);
   const users = await activeMerchantUsers(shop.id);
   const connected = users.length > 0;
+  const plan = await currentPlan(shop, admin.graphql);
+  const groupPlan = hasFeature(plan, "group");
 
   const [embedEnabled, stats, recent, pendingCount, connect] =
     await Promise.all([
       storefrontEmbedEnabled(admin.graphql),
-      monthlyStats(shop.id, config.monthlyLlmBudgetUsd),
+      monthlyStats(shop.id, llmBudgetUsd(plan)),
       db.auditEvent.findMany({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
@@ -55,6 +61,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const owner = users.find((u) => u.role === "owner") ?? users[0];
   return {
+    plan,
+    planName: planInfo(plan)?.name ?? null,
+    groupPlan,
+    group: groupPlan ? await buildGroupInfo(shop.id) : null,
     shopName: shop.name ?? session.shop,
     connected,
     linkedCount: users.length,
@@ -117,6 +127,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           : "Test message sent",
       };
     }
+    case "create-group": {
+      const plan = await currentPlan(shop, admin.graphql);
+      if (!hasFeature(plan, "group"))
+        return {
+          ok: false,
+          message: "The team group is part of the Group plan",
+        };
+      if ((await activeMerchantUsers(shop.id)).length === 0)
+        return { ok: false, message: "Connect your WhatsApp first" };
+      const group = await createStoreGroup(shop);
+      return group.status === "failed"
+        ? {
+            ok: false,
+            message: "Couldn't create the group. Try again in a minute.",
+          }
+        : { ok: true, message: "Creating your team group" };
+    }
     case "simulate-link": {
       if (config.isProduction) return { ok: false, message: "Not available" };
       const result = await consumeLinkCode(
@@ -168,13 +195,13 @@ const EXAMPLES = [
     title: "Sales summary",
     icon: "chart-vertical",
     text: "How were sales this week?",
-    note: "You also get a short summary every Monday.",
+    note: "On the Group plan you also get daily or weekly summaries.",
   },
   {
     title: "Abandoned carts",
     icon: "cart-abandoned",
     text: "Show abandoned checkouts from yesterday",
-    note: "I draft friendly follow-ups you can send from your own WhatsApp.",
+    note: "Group plan: I draft follow-ups you send from your own WhatsApp.",
   },
 ] as const;
 
@@ -194,22 +221,25 @@ export default function Home() {
   const revalidator = useRevalidator();
 
   const storefrontDone = data.embedEnabled === true || data.storefrontSkipped;
-  const completed = (data.connected ? 1 : 0) + (storefrontDone ? 1 : 0);
-  const allDone = completed === 2;
+  const groupDone = data.group?.status === "active";
+  // Steps: 1 connect WhatsApp, 2 team group (Group plan only), 3 storefront banner (optional).
+  const steps = [
+    { id: 1, done: data.connected },
+    ...(data.groupPlan ? [{ id: 2, done: groupDone }] : []),
+    { id: 3, done: storefrontDone },
+  ];
+  const completed = steps.filter((st) => st.done).length;
+  const allDone = completed === steps.length;
 
   // The first unfinished step is open by default; a manual toggle sticks until a step's status changes.
-  const stepKey = `${data.connected}-${storefrontDone}`;
-  const defaultOpen: 1 | 2 | null = !data.connected
-    ? 1
-    : !storefrontDone
-      ? 2
-      : null;
+  const stepKey = steps.map((st) => (st.done ? 1 : 0)).join("");
+  const defaultOpen = steps.find((st) => !st.done)?.id ?? null;
   const [toggle, setToggle] = useState<{
     key: string;
-    open: 1 | 2 | null;
+    open: number | null;
   } | null>(null);
   const open = toggle && toggle.key === stepKey ? toggle.open : defaultOpen;
-  const setOpen = (value: 1 | 2 | null) =>
+  const setOpen = (value: number | null) =>
     setToggle({ key: stepKey, open: value });
 
   useEffect(() => {
@@ -247,6 +277,16 @@ export default function Home() {
 
   return (
     <s-page heading="Home">
+      {data.plan === "none" && (
+        <s-banner tone="warning" heading="Choose a plan to start">
+          <s-paragraph>
+            Storemate replies on WhatsApp once a plan is active.
+          </s-paragraph>
+          <s-button slot="secondary-actions" href="/app/plan">
+            See plans
+          </s-button>
+        </s-banner>
+      )}
       {data.pendingCount > 0 && (
         <s-banner
           tone="info"
@@ -275,7 +315,9 @@ export default function Home() {
                 <s-text color="subdued">
                   {allDone
                     ? "Manage your store by messaging Storemate on WhatsApp."
-                    : "Two quick steps, then you can run your store from WhatsApp."}
+                    : data.groupPlan
+                      ? "Connect your WhatsApp and create your team group."
+                      : "Two quick steps, then you can run your store from WhatsApp."}
                 </s-text>
               </s-stack>
               {allDone && (
@@ -288,8 +330,10 @@ export default function Home() {
               )}
             </s-stack>
 
-            <s-text color="subdued">{completed} of 2 steps complete</s-text>
-            <ProgressBar value={completed} max={2} />
+            <s-text color="subdued">
+              {completed} of {steps.length} steps complete
+            </s-text>
+            <ProgressBar value={completed} max={steps.length} />
 
             <s-stack direction="block" gap="none">
               <SetupStep
@@ -336,16 +380,38 @@ export default function Home() {
                 )}
               </SetupStep>
 
+              {data.groupPlan && (
+                <>
+                  <s-divider />
+                  <SetupStep
+                    index={2}
+                    title="Create your team group"
+                    done={groupDone}
+                    open={open === 2}
+                    onToggle={() => setOpen(open === 2 ? null : 2)}
+                  >
+                    <TeamGroup
+                      group={data.group}
+                      disabledReason={
+                        data.connected
+                          ? null
+                          : "Connect your WhatsApp first, then create the group."
+                      }
+                    />
+                  </SetupStep>
+                </>
+              )}
+
               <s-divider />
 
               <SetupStep
-                index={2}
+                index={3}
                 title="Show banners on your store"
                 optional
                 done={storefrontDone}
                 doneLabel={data.embedEnabled ? undefined : "Skipped"}
-                open={open === 2}
-                onToggle={() => setOpen(open === 2 ? null : 2)}
+                open={open === 3}
+                onToggle={() => setOpen(open === 3 ? null : 3)}
               >
                 <s-stack direction="block" gap="base">
                   <s-paragraph>
@@ -481,6 +547,7 @@ export default function Home() {
             label="Assistant usage"
             value={`${data.stats.budgetUsedPercent}%`}
           />
+          {data.planName && <Stat label="Plan" value={data.planName} />}
         </s-stack>
       </s-section>
 

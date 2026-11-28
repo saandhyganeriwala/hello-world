@@ -1,13 +1,23 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { generateLinkCode, linkMessageText, parseLinkCode, waMeLink } from "./link-code";
+import {
+  generateLinkCode,
+  linkMessageText,
+  parseLinkCode,
+  waMeLink,
+} from "./link-code";
 import { maskPhone } from "./phone";
-import { activateEmbedUrl, isEmbedEnabled, stripLeadingComment } from "./theme-embed";
+import {
+  activateEmbedUrl,
+  isEmbedEnabled,
+  stripLeadingComment,
+} from "./theme-embed";
 import { verifyMetaSignature } from "./whatsapp-signature";
 
 describe("link codes", () => {
   it("generates 6-character codes from the unambiguous alphabet", () => {
-    for (let i = 0; i < 200; i++) expect(generateLinkCode()).toMatch(/^[2-9A-HJ-NP-Z]{6}$/);
+    for (let i = 0; i < 200; i++)
+      expect(generateLinkCode()).toMatch(/^[2-9A-HJ-NP-Z]{6}$/);
   });
 
   it("round-trips through the prefilled message", () => {
@@ -28,7 +38,9 @@ describe("link codes", () => {
   });
 
   it("builds wa.me links with digits only", () => {
-    expect(waMeLink("+91 98100 00000", "a b")).toBe("https://wa.me/919810000000?text=a%20b");
+    expect(waMeLink("+91 98100 00000", "a b")).toBe(
+      "https://wa.me/919810000000?text=a%20b",
+    );
   });
 });
 
@@ -52,12 +64,22 @@ describe("theme embed detection", () => {
   });
 
   it("detects an enabled embed", () => {
-    expect(isEmbedEnabled(withHeader({ current: { blocks: { "1": { type, disabled: false } } } }))).toBe(true);
-    expect(isEmbedEnabled(withHeader({ current: { blocks: { "1": { type } } } }))).toBe(true);
+    expect(
+      isEmbedEnabled(
+        withHeader({ current: { blocks: { "1": { type, disabled: false } } } }),
+      ),
+    ).toBe(true);
+    expect(
+      isEmbedEnabled(withHeader({ current: { blocks: { "1": { type } } } })),
+    ).toBe(true);
   });
 
   it("treats a disabled or missing embed as off", () => {
-    expect(isEmbedEnabled(withHeader({ current: { blocks: { "1": { type, disabled: true } } } }))).toBe(false);
+    expect(
+      isEmbedEnabled(
+        withHeader({ current: { blocks: { "1": { type, disabled: true } } } }),
+      ),
+    ).toBe(false);
     expect(isEmbedEnabled(withHeader({ current: { blocks: {} } }))).toBe(false);
     expect(isEmbedEnabled(withHeader({ current: {} }))).toBe(false);
     expect(isEmbedEnabled("not json")).toBe(false);
@@ -65,12 +87,19 @@ describe("theme embed detection", () => {
   });
 
   it("supports themes whose current settings point to a preset", () => {
-    const data = { current: "Default", presets: { Default: { blocks: { a: { type } } } } };
+    const data = {
+      current: "Default",
+      presets: { Default: { blocks: { a: { type } } } },
+    };
     expect(isEmbedEnabled(withHeader(data))).toBe(true);
   });
 
   it("ignores other apps and other blocks", () => {
-    const other = { current: { blocks: { a: { type: "shopify://apps/other/blocks/reviews/123" } } } };
+    const other = {
+      current: {
+        blocks: { a: { type: "shopify://apps/other/blocks/reviews/123" } },
+      },
+    };
     expect(isEmbedEnabled(withHeader(other))).toBe(false);
   });
 
@@ -90,7 +119,8 @@ describe("theme embed detection", () => {
 describe("verifyMetaSignature", () => {
   const secret = "test-secret";
   const body = JSON.stringify({ object: "whatsapp_business_account" });
-  const sig = "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
+  const sig =
+    "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
 
   it("accepts a valid signature", () => {
     expect(verifyMetaSignature(body, sig, secret)).toBe(true);

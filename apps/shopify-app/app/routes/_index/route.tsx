@@ -23,7 +23,8 @@ export default function App() {
       <div className={styles.content}>
         <h1 className={styles.heading}>Run your Shopify store from WhatsApp</h1>
         <p className={styles.text}>
-          Storemate adds products, updates prices and shipping, and sends weekly sales summaries, all from a WhatsApp chat.
+          Storemate adds products, updates prices and shipping, and sends weekly
+          sales summaries, all from a WhatsApp chat.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -39,13 +40,16 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Products from photos</strong>. Send photos and a price; Storemate cleans the images and writes the listing.
+            <strong>Products from photos</strong>. Send photos and a price;
+            Storemate cleans the images and writes the listing.
           </li>
           <li>
-            <strong>You approve every big change</strong>. Publishing, prices, shipping and discounts wait for your OK.
+            <strong>You approve every big change</strong>. Publishing, prices,
+            shipping and discounts wait for your OK.
           </li>
           <li>
-            <strong>Weekly summaries</strong>. Sales, top products and abandoned checkouts, delivered to WhatsApp.
+            <strong>Weekly summaries</strong>. Sales, top products and abandoned
+            checkouts, delivered to WhatsApp.
           </li>
         </ul>
       </div>
