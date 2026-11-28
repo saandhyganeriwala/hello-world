@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Managed by @shopify/shopify-app-session-storage-prisma. Do not rename fields.
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model Shop {
+  id                      String          @id @default(cuid())
+  shopDomain              String          @unique
+  name                    String?
+  installedAt             DateTime        @default(now())
+  uninstalledAt           DateTime?
+  setupDismissedAt        DateTime?
+  storefrontStepSkippedAt DateTime?
+  settings                ShopSettings?
+  merchantUsers           MerchantUser[]
+  linkCodes               LinkCode[]
+  waMessages              WaMessage[]
+  auditEvents             AuditEvent[]
+  pendingActions          PendingAction[]
+  llmUsage                LlmUsage[]
+}
+
+model ShopSettings {
+  shopId                String   @id
+  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  /// auto | en | hi
+  language              String   @default("auto")
+  /// standard: approve publishing, prices, shipping, discounts, storefront, deletions
+  /// strict:   also approve drafts and stock changes
+  approvalMode          String   @default("standard")
+  weeklySummaryEnabled  Boolean  @default(true)
+  /// 1 = Monday ... 7 = Sunday
+  weeklySummaryDay      Int      @default(1)
+  checkoutDigestEnabled Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+}
+
+/// A WhatsApp number allowed to manage a shop.
+model MerchantUser {
+  id            String    @id @default(cuid())
+  shopId        String
+  shop          Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  /// E.164 digits without "+", as WhatsApp sends it
+  waId          String
+  displayName   String?
+  /// owner | staff
+  role          String    @default("owner")
+  linkedAt      DateTime  @default(now())
+  revokedAt     DateTime?
+  lastInboundAt DateTime?
+
+  @@unique([shopId, waId])
+  @@index([waId])
+}
+
+model LinkCode {
+  code       String    @id
+  shopId     String
+  shop       Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  usedAt     DateTime?
+  usedByWaId String?
+
+  @@index([shopId])
+}
+
+model WaMessage {
+  id          String   @id @default(cuid())
+  /// Meta message id; unique so webhook retries are ignored
+  waMessageId String   @unique
+  /// in | out
+  direction   String
+  shopId      String?
+  shop        Shop?    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  waId        String
+  type        String
+  body        String?
+  payload     Json
+  createdAt   DateTime @default(now())
+
+  @@index([shopId, createdAt])
+}
+
+/// Append-only record of every change the assistant made or attempted.
+model AuditEvent {
+  id              String    @id @default(cuid())
+  shopId          String
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  /// agent | merchant | system
+  actor           String
+  waId            String?
+  tool            String
+  summary         String
+  /// done | failed | undone
+  status          String    @default("done")
+  /// GraphQL operations that reverse this change: [{ query, variables }]
+  undoOps         Json?
+  undoneAt        DateTime?
+  pendingActionId String?
+  details         Json?
+  createdAt       DateTime  @default(now())
+
+  @@index([shopId, createdAt])
+}
+
+/// A high-impact change frozen until the merchant approves it.
+model PendingAction {
+  id              String    @id @default(cuid())
+  shopId          String
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  tool            String
+  summary         String
+  diffText        String
+  /// Exact operations to run on approval: [{ query, variables }]
+  ops             Json
+  /// Operations that reverse the change, recorded on the audit event after it runs
+  undoOps         Json?
+  /// pending | approved | rejected | expired | failed
+  status          String    @default("pending")
+  requestedByWaId String?
+  decidedBy       String?
+  /// whatsapp | admin
+  decidedVia      String?
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+  decidedAt       DateTime?
+
+  @@index([shopId, status])
+}
+
+model LlmUsage {
+  id               String   @id @default(cuid())
+  shopId           String
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  episodeId        String?
+  purpose          String
+  model            String
+  inputTokens      Int
+  cacheReadTokens  Int      @default(0)
+  cacheWriteTokens Int      @default(0)
+  outputTokens     Int
+  costUsd          Decimal  @db.Decimal(12, 6)
+  createdAt        DateTime @default(now())
+
+  @@index([shopId, createdAt])
+}

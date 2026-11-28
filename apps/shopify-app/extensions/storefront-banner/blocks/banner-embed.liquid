@@ -1,0 +1,40 @@
+{%- comment -%}
+  App embed: renders the announcement banner Storemate stores in an app-data metafield
+  (owner: AppInstallation, namespace "banner", key "config", type json). The assistant updates the
+  metafield through the Admin API; the theme's own code is never edited.
+  Expected value: {"enabled":true,"text":"...","link_url":"...","style":"neutral|dark|light",
+                   "starts_at":"ISO date","ends_at":"ISO date"}
+{%- endcomment -%}
+{%- assign cfg = app.metafields.banner.config.value -%}
+{%- if cfg and cfg.enabled and cfg.text != blank -%}
+  {%- assign now_s = 'now' | date: '%s' | plus: 0 -%}
+  {%- assign show = true -%}
+  {%- if cfg.starts_at != blank -%}
+    {%- assign start_s = cfg.starts_at | date: '%s' | plus: 0 -%}
+    {%- if now_s < start_s -%}{%- assign show = false -%}{%- endif -%}
+  {%- endif -%}
+  {%- if cfg.ends_at != blank -%}
+    {%- assign end_s = cfg.ends_at | date: '%s' | plus: 0 -%}
+    {%- if now_s >= end_s -%}{%- assign show = false -%}{%- endif -%}
+  {%- endif -%}
+  {%- if show -%}
+    {%- assign style = cfg.style | default: 'neutral' -%}
+    {%- unless style == 'neutral' or style == 'dark' or style == 'light' -%}{%- assign style = 'neutral' -%}{%- endunless -%}
+    {{ 'storemate-banner.css' | asset_url | stylesheet_tag }}
+    <div class="storemate-banner storemate-banner--{{ style }}" role="region" aria-label="{{ 'banner.label' | t }}">
+      {%- if cfg.link_url != blank -%}
+        <a href="{{ cfg.link_url | escape }}">{{ cfg.text | escape }}</a>
+      {%- else -%}
+        {{ cfg.text | escape }}
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Storemate banner",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

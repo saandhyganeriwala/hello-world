@@ -1,0 +1,12 @@
+/* Storemate banner: small, no JavaScript, inherits the theme's font. */
+.storemate-banner {
+  display: block;
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.storemate-banner--neutral { background: #f3f3f3; color: #1a1a1a; }
+.storemate-banner--dark { background: #1a1a1a; color: #ffffff; }
+.storemate-banner--light { background: #ffffff; color: #1a1a1a; border-bottom: 1px solid #e3e3e3; }
+.storemate-banner a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

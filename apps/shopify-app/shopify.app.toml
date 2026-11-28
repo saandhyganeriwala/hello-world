@@ -1,0 +1,41 @@
+# Shopify app configuration. Run `shopify app config link` to connect this file to your app in the
+# Partner Dashboard; the CLI fills in client_id and URLs.
+client_id = ""
+name = "Storemate"
+embedded = true
+
+[access_scopes]
+# Requested at install. Others are optional scopes, requested in context when first needed
+# (see docs/03-shopify-api-surface.md).
+scopes = "read_products,write_products,read_publications,write_publications,read_inventory,write_inventory,read_locations,read_orders,read_themes"
+optional_scopes = [
+  "read_shipping",
+  "write_shipping",
+  "read_discounts",
+  "write_discounts",
+  "read_online_store_pages",
+  "write_online_store_pages",
+  "read_online_store_navigation",
+  "write_online_store_navigation",
+  "read_content",
+  "write_content",
+  "read_customers",
+]
+
+[webhooks]
+api_version = "2026-10"
+
+  # Handled by: /app/routes/webhooks.app.uninstalled.tsx
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = ["app/uninstalled"]
+
+  # Handled by: /app/routes/webhooks.app.scopes_update.tsx
+  [[webhooks.subscriptions]]
+  topics = ["app/scopes_update"]
+  uri = "/webhooks/app/scopes_update"
+
+  # Mandatory compliance topics for public apps. Handled by: /app/routes/webhooks.compliance.tsx
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
